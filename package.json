@@ -2,7 +2,7 @@
   "name": "zip",
   "version": "0.0.1",
   "description": "Framework for quick web apps",
-  "main": "server.ts",
+  "main": "src/zip-runner.ts",
   "scripts": {
     "start": "ts-node-dev --respawn --transpile-only ./server.ts",
     "serve": "ts-node-dev --respawn --transpile-only ./server.ts"
