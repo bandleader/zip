@@ -14,7 +14,7 @@ export default class Bundler {
         `
     }
     static getLoader(modules: Dict<Function>) {
-        const loadedModules = {}
+        const loadedModules: Record<string, Function> = {}
         // TODO: keep a stack to detect infinite recursion
         // TODO: trap errors during module init and say so
         return (moduleName: string) => {
@@ -42,7 +42,7 @@ export default class Bundler {
         const script2 = Bundler.convJsModuleToFunction(script)                  
         const template = getTag("template", vueSfcCode)
         const css = getTag("style", vueSfcCode)
-        const btoa = str => new Buffer(str).toString('base64')
+        const btoa = (str: string) => new Buffer(str).toString('base64')
         return `
             const exp = ${script2};
             exp.template = atob("${btoa(template)}")

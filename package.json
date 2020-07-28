@@ -2,8 +2,13 @@
   "name": "zip",
   "version": "0.0.1",
   "description": "Framework for quick web apps",
-  "main": "src/zip-runner.ts",
+  "main": "dist/index.js",
+  "module": "dist/index.es.js",
+  "files": ["dist"],
+  "types": "dist/zip-runner.d.ts",
   "scripts": {
+    "build": "rollup -c",
+    "watch": "rollup -cw",
     "start": "ts-node-dev --respawn --transpile-only ./server.ts",
     "serve": "ts-node-dev --respawn --transpile-only ./server.ts"
   },
@@ -11,7 +16,6 @@
     "@types/express": "^4.17.6",
     "@types/node": "^13.11.1",
     "@types/socket.io": "^2.1.4",
-    "express": "^4.16.3",
     "node-fetch": "^2.6.0",
     "nodemailer": "^6.4.6",
     "socket.io": "^2.3.0"
@@ -20,6 +24,9 @@
     "node": "8.x"
   },
   "devDependencies": {
+    "rollup": "^2.23.0",
+    "rollup-plugin-typescript2": "^0.27.1",
+    "express": "^4.16.3",
     "typescript": "^3.8.3"
   }
 }
