@@ -4,7 +4,9 @@
   "description": "Framework for quick web apps",
   "main": "dist/index.js",
   "module": "dist/index.es.js",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "types": "dist/zip-runner.d.ts",
   "scripts": {
     "build": "rollup -c",
@@ -16,7 +18,7 @@
     "@types/express": "^4.17.6",
     "@types/node": "^13.11.1",
     "@types/socket.io": "^2.1.4",
-    "node-fetch": "^2.6.0",
+    "node-fetch": "^2.6.1",
     "nodemailer": "^6.4.6",
     "socket.io": "^2.3.0"
   },
