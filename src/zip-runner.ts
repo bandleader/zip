@@ -14,7 +14,7 @@ type ZipSite = { siteName: string, siteBrand: string, files: Dict<ZipFile> }
 type ZipFile = { data: string }
 
 export default class ZipRunner {
-  constructor(public site: ZipSite, public protocolAndDomain: string, public basePath: string /*if any -- include preceding slash -- or use ""*/, public appKey: string) { 
+  constructor(public site: ZipSite, public protocolAndDomain: string, public basePath = "/" /*include slashes*/) { 
   }
 
   getFile(path: string) {
@@ -64,7 +64,7 @@ export default class ZipRunner {
       ]
       const router = new VueRouter({
         routes,
-        base: '${this.basePath}/',
+        base: '${this.basePath}',
         mode: 'history'
       })`)
     
