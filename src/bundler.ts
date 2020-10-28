@@ -2,6 +2,29 @@ type Dict<T> = Record<string, T>
 
 export default class Bundler {
     static convJsModuleToFunction(jsCode: string, execute = true) {
+        /* TODO: allow named exports too
+            (function(module) { module = module || {}; module.exports = {}; CODE_HERE; return module.exports })
+        */
+        /* TODO allow exporting functions, classes, const/vars
+            export const/var/let foo = 5                =>      const/var/let foo = module.exports.foo = 5
+            export function foo() { }                   =>      const foo = module.exports.foo = function foo() { }
+            export class foo { }                        =>      const foo = module.exports.foo = class foo() { }
+            export default class/function foo { }       =>      const foo = module.exports._default = class/function foo() { }
+            export default 5                            =>      module.exports._default = 5
+                                                Or to simplify: const _default = module.exports._default = 5
+
+            parseExport(str, pos): {name: string|"_default", declaration: "const"|"var"|"let"|"function"|"class"|null, lengthIncludingName: number} {
+              // Eat export
+              // Optionally eat default
+              // Optionally eat declaration: const/let/var/function/async function/class
+              // If there was a declaration, eat the name (identifier)
+            }
+            exportToDeclAndAssignment(export) {
+                const ourDecl = (export.declaration==="var" || export.declaration==="let") ? export.declaration : "const"
+                return `${ourDecl} ${export.name} = module.exports.${export.name} = `
+            }
+        */
+        
         jsCode = jsCode.replace("export default", "_defaultExport = ")
         jsCode = "(function() {\n  let _defaultExport = undefined\n\n" + jsCode + "\n\n\n  return _defaultExport\n})" + (execute ? "()\n" : "\n")
         return jsCode
