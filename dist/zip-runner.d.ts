@@ -11,8 +11,7 @@ export default class ZipRunner {
     site: ZipSite;
     protocolAndDomain: string;
     basePath: string;
-    appKey: string;
-    constructor(site: ZipSite, protocolAndDomain: string, basePath: string, appKey: string);
+    constructor(site: ZipSite, protocolAndDomain: string, basePath?: string);
     getFile(path: string): string;
     getFrontendIndex(): string;
     handleRequest(path: string, req: any, resp: any): void;

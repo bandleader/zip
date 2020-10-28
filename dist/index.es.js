@@ -2,6 +2,28 @@ var Bundler = /** @class */ (function () {
     function Bundler() {
     }
     Bundler.convJsModuleToFunction = function (jsCode, execute) {
+        /* TODO: allow named exports too
+            (function(module) { module = module || {}; module.exports = {}; CODE_HERE; return module.exports })
+        */
+        /* TODO allow exporting functions, classes, const/vars
+            export const/var/let foo = 5                =>      const/var/let foo = module.exports.foo = 5
+            export function foo() { }                   =>      const foo = module.exports.foo = function foo() { }
+            export class foo { }                        =>      const foo = module.exports.foo = class foo() { }
+            export default class/function foo { }       =>      const foo = module.exports._default = class/function foo() { }
+            export default 5                            =>      module.exports._default = 5
+                                                Or to simplify: const _default = module.exports._default = 5
+
+            parseExport(str, pos): {name: string|"_default", declaration: "const"|"var"|"let"|"function"|"class"|null, lengthIncludingName: number} {
+              // Eat export
+              // Optionally eat default
+              // Optionally eat declaration: const/let/var/function/async function/class
+              // If there was a declaration, eat the name (identifier)
+            }
+            exportToDeclAndAssignment(export) {
+                const ourDecl = (export.declaration==="var" || export.declaration==="let") ? export.declaration : "const"
+                return `${ourDecl} ${export.name} = module.exports.${export.name} = `
+            }
+        */
         if (execute === void 0) { execute = true; }
         jsCode = jsCode.replace("export default", "_defaultExport = ");
         jsCode = "(function() {\n  let _defaultExport = undefined\n\n" + jsCode + "\n\n\n  return _defaultExport\n})" + (execute ? "()\n" : "\n");
@@ -48,11 +70,11 @@ var Bundler = /** @class */ (function () {
 
 //   ________  ___  ________   
 var ZipRunner = /** @class */ (function () {
-    function ZipRunner(site, protocolAndDomain, basePath /*if any -- include preceding slash -- or use ""*/, appKey) {
+    function ZipRunner(site, protocolAndDomain, basePath /*include slashes*/) {
+        if (basePath === void 0) { basePath = "/"; }
         this.site = site;
         this.protocolAndDomain = protocolAndDomain;
         this.basePath = basePath;
-        this.appKey = appKey;
     }
     ZipRunner.prototype.getFile = function (path) {
         if (!this.site.files[path])
@@ -92,7 +114,7 @@ var ZipRunner = /** @class */ (function () {
         var vuesPages = vues.filter(function (x) { return x.path.startsWith("pages/"); });
         scripts.push.apply(scripts, vuesPages.map(function (v) { return Bundler.convVueModuleToInitGlobalCode(v.componentKey, Bundler.convVueSfcToJsModule(v.contents)); }));
         // Set up frontend routes
-        scripts.push("\n      const routes = [\n        { path: '/', component: window.vues['Home'] },\n        " + vuesPages.map(function (v) { return "{ path: '/" + v.componentKey + "', component: window.vues['" + v.componentKey + "'] }"; }).join(", ") + "\n      ]\n      const router = new VueRouter({\n        routes,\n        base: '" + this.basePath + "/',\n        mode: 'history'\n      })");
+        scripts.push("\n      const routes = [\n        { path: '/', component: window.vues['Home'] },\n        " + vuesPages.map(function (v) { return "{ path: '/" + v.componentKey + "', component: window.vues['" + v.componentKey + "'] }"; }).join(", ") + "\n      ]\n      const router = new VueRouter({\n        routes,\n        base: '" + this.basePath + "',\n        mode: 'history'\n      })");
         // Call Vue
         scripts.push("\n      vueApp = new Vue({ \n        el: '#app', \n        router, \n        data: { \n          App: {\n            identity: {\n              showLogin() { alert(\"TODO\") },\n              logout() { alert(\"TODO\") },\n            }\n          }, \n          siteName: `" + this.site.siteName + "`,\n          deviceState: { user: null },\n          navMenuItems: " + JSON.stringify(vuesPages.filter(function (x) { return x.path.substr(9, 1) === x.path.substr(9, 1).toUpperCase(); }).map(function (x) { return ({ url: '/' + x.componentKey, text: x.path.substr(9, x.path.length - 9 - 4) }); })) + ",\n        },\n        created() {\n        }\n      })");
         return scripts.join("\n");
