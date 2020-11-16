@@ -10,7 +10,7 @@ if (!package.dependencies.zip) package.dependencies.zip = "github:bandleader/zip
 if (!package.zip) package.zip = { siteName: package.name, basePath: "/" }
 if (!package.scripts) package.scripts = {}
 if (!package.scripts.serve) package.scripts.serve = "npx --no-install zip-serve"
-if (!package.scripts.serve) package.scripts.build = "npx --no-install zip-build"
+if (!package.scripts.build) package.scripts.build = "npx --no-install zip-build"
 
 fs.writeFileSync("./package.json", JSON.stringify(package, undefined, 2))
 
