@@ -7,10 +7,10 @@
   "files": [
     "dist",
     "default-files/*",
-    "src/zipbuild.js"
+    "cmds/*"
   ],
   "types": "dist/zip-runner.d.ts",
-  "bin": { "zipbuild": "src/zipbuild.js" },
+  "bin": { "zip-build": "cmds/zip-build.js", "zip-serve": "cmds/zip-serve.js" },
   "scripts": {
     "build": "rollup -c",
     "watch": "rollup -cw",
