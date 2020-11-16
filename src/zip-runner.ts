@@ -28,7 +28,7 @@ export default class ZipRunner {
     contents = contents.replace(/\{\{siteName\}\}/g, this.site.siteName)
     contents = contents.replace(/\{\{siteBrand\}\}/g, this.site.siteBrand || this.site.siteName)
     // Inject script
-    contents = contents.replace(/<\/body>/g, `<script>${scriptsToInclude}</script>`)
+    contents = contents.replace(/<\/body>/g, `<script>${scriptsToInclude}</script></body>`)
     return contents
   }
  
