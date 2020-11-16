@@ -12,7 +12,7 @@ const server = http.createServer((request, response) => {
 
 server.listen(port, (err) => {
   if (err) {
-    return console.log('something bad happened', err)
+    return console.log('An error occured: ', err)
   }
 
   console.log(`zip-serve is listening on http://localhost:${port}`)
