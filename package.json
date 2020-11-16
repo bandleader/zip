@@ -8,7 +8,7 @@
     "dist"
   ],
   "types": "dist/zip-runner.d.ts",
-  "bin": { "zipbuild": "zipbuild.js" },
+  "bin": { "zipbuild": "src/zipbuild.js" },
   "scripts": {
     "build": "rollup -c",
     "watch": "rollup -cw",
