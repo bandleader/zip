@@ -10,7 +10,11 @@
     "cmds/*"
   ],
   "types": "dist/zip-runner.d.ts",
-  "bin": { "zip-build": "cmds/zip-build.js", "zip-serve": "cmds/zip-serve.js" },
+  "bin": { 
+    "zip-build": "cmds/zip-build.js", 
+    "zip-serve": "cmds/zip-serve.js", 
+    "zip-init": "cmds/zip-init.js" 
+  },
   "scripts": {
     "build": "rollup -c",
     "watch": "rollup -cw",
