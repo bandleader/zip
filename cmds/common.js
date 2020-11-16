@@ -23,11 +23,11 @@ function filesFromDir(localPath) {
 
 function getZipContext() {
     const root = getPackageRoot()
-    const packageJson = JSON.parse(fs.readFileSync(projRoot + "/package.json"))
+    const packageJson = JSON.parse(fs.readFileSync(root + "/package.json"))
     const zipConfig = packageJson.zip || {}
     
-    const zipSrcDirectories = [projRoot + "/zip-src", projRoot + "/zipsrc"]
-    const zipSrcDirectoriesWhereExists = zipSrcDirectories.filter(existsSync)
+    const zipSrcDirectories = [root + "/zip-src", root + "/zipsrc"]
+    const zipSrcDirectoriesWhereExists = zipSrcDirectories.filter(fs.existsSync)
     if (!zipSrcDirectoriesWhereExists.length) throw "No `zip-src` directories found: " + zipSrcDirectories.join(", ")
 
     const runner = new ZipRunner({
