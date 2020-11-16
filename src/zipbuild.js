@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const { existsSync, writeFileSync, mkdirSync } = require('fs')
+const { existsSync, writeFileSync, mkdirSync, readFileSync, readdirSync } = require('fs')
 const { dirname } = require('path')
 const { cwd } = require('process')
 const ZipRunner = require('../dist/index')
@@ -8,18 +8,33 @@ const ZipRunner = require('../dist/index')
 const defaultFilesDir = __dirname + "/../default-files"
 if (!existsSync(defaultFilesDir)) throw "Couldn't find `default-files` directory"
 
-const projRoot = dirname(require.main.filename)
-if (!projRoot) throw "Couldn't get project root"
+let projRoot = cwd()
+while (!existsSync(projRoot + "/package.json")) {
+    console.warn("Couldn't find package.json at " + projRoot)
+    projRoot = projRoot.replace(/\\/g, "/").split("/").slice(0, projRoot.split("/").length - 1).join("/") // hack off one directory
+    console.warn("Trying " + projRoot)
+    if (projRoot.length <= 3) throw "Couldn't find `package.json` anywhere"
+}
 
 const zipSrcDirectories = [projRoot + "/zip-src", projRoot + "/zipsrc"]
 const zipSrcDirectoriesWhereExists = zipSrcDirectories.filter(existsSync)
 if (!zipSrcDirectoriesWhereExists.length) throw "No `zip-src` directories found: " + zipSrcDirectories.join(", ")
 
-let siteName = process.argv[0] || projRoot.replace(/\\/g, "/").split("/").slice(-1)[0].toUpperCase()
+const packageJson = JSON.parse(readFileSync(projRoot + "/package.json"))
+const zipConfig = packageJson.zip || {}
+let siteName = zipConfig.siteName || packageJson.name // projRoot.replace(/\\/g, "/").split("/").slice(-1)[0].toUpperCase()
 if (!siteName) {
-    console.warn("siteName CLI argument not specified; using `Zip App`")
+    console.warn("Warning: `zip.siteName` not specified in `package.json`; falling back to `Zip App`")
     siteName = "Zip App"
 }
+
+const filesFromDir = (localPath) => {
+    const ret = {}
+    for (const file of readdirSync(localPath)) {
+      ret[file.replace(/--/g, "/")] = { data: readFileSync(`${localPath}/${file}`).toString() }
+    }
+    return ret
+  }
 
 const runner = new ZipRunner({
     siteName: siteName,
