@@ -5,7 +5,9 @@
   "main": "dist/index.js",
   "module": "dist/index.es.js",
   "files": [
-    "dist"
+    "dist",
+    "default-files/*",
+    "src/zipbuild.js"
   ],
   "types": "dist/zip-runner.d.ts",
   "bin": { "zipbuild": "src/zipbuild.js" },
