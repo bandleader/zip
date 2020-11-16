@@ -10,11 +10,21 @@
 import bundler from './bundler'
 
 type Dict<T> = Record<string, T>
-type ZipSite = { siteName: string, siteBrand: string, files: Dict<ZipFile> }
+type ZipSite = { 
+  siteName: string, 
+  siteBrand?: string, 
+  files: Dict<ZipFile>, 
+  basePath?: string /*include slashes. default is "/" */,
+  router?: {
+    mode?: string
+  }
+}
 type ZipFile = { data: string }
 
 export default class ZipRunner {
-  constructor(public site: ZipSite, public protocolAndDomain: string, public basePath = "/" /*include slashes*/) { 
+  constructor(public site: ZipSite) { 
+    site.siteBrand = site.siteBrand || site.siteName
+    site.router = site.router || {}
   }
 
   getFile(path: string) {
@@ -64,8 +74,8 @@ export default class ZipRunner {
       ]
       const router = new VueRouter({
         routes,
-        base: '${this.basePath}',
-        mode: 'history'
+        base: '${this.site.basePath || "/"}',
+        mode: '${this.site.router!.mode || 'history'}'
       })`)
     
       // Call Vue

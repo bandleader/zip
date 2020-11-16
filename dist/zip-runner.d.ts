@@ -1,17 +1,19 @@
 declare type Dict<T> = Record<string, T>;
 declare type ZipSite = {
     siteName: string;
-    siteBrand: string;
+    siteBrand?: string;
     files: Dict<ZipFile>;
+    basePath?: string;
+    router?: {
+        mode?: string;
+    };
 };
 declare type ZipFile = {
     data: string;
 };
 export default class ZipRunner {
     site: ZipSite;
-    protocolAndDomain: string;
-    basePath: string;
-    constructor(site: ZipSite, protocolAndDomain: string, basePath?: string);
+    constructor(site: ZipSite);
     getFile(path: string): string;
     getFrontendIndex(): string;
     handleRequest(path: string, req: any, resp: any): void;

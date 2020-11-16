@@ -30,14 +30,16 @@ function getZipContext() {
     const zipSrcDirectoriesWhereExists = zipSrcDirectories.filter(fs.existsSync)
     if (!zipSrcDirectoriesWhereExists.length) throw "No `zip-src` directories found: " + zipSrcDirectories.join(", ")
 
-    const runner = new ZipRunner({
-        siteName: siteName,
-        siteBrand: siteName,
+    const site = {
+        siteName: "Zip Site",
         files: {
             ...filesFromDir(__dirname + "/../default-files"),
             ...filesFromDir(zipSrcDirectoriesWhereExists[0])
         }
-    }, "http://localhost:8005")
+    }
+    for (const k in zipConfig) site[k] = zipConfig[k]
+
+    const runner = new ZipRunner(site, "http://localhost:8005")
     return {
         root,
         packageJson,

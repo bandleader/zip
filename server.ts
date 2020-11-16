@@ -24,9 +24,8 @@ const filesFromDir = (localPath: string) => {
 }
 const testZipRunner = new ZipRunner({
   siteName: "TestZip",
-  siteBrand: "TestZip",
   files: filesFromDir("./default-files")
-}, "http://localhost:8005")
+})
 app.get("*", (req,resp) => testZipRunner.handleRequest(req.path, req, resp))
 
 // Ready to listen!

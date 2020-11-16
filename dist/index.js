@@ -72,11 +72,10 @@ var Bundler = /** @class */ (function () {
 
 //   ________  ___  ________   
 var ZipRunner = /** @class */ (function () {
-    function ZipRunner(site, protocolAndDomain, basePath /*include slashes*/) {
-        if (basePath === void 0) { basePath = "/"; }
+    function ZipRunner(site) {
         this.site = site;
-        this.protocolAndDomain = protocolAndDomain;
-        this.basePath = basePath;
+        site.siteBrand = site.siteBrand || site.siteName;
+        site.router = site.router || {};
     }
     ZipRunner.prototype.getFile = function (path) {
         if (!this.site.files[path])
@@ -116,7 +115,7 @@ var ZipRunner = /** @class */ (function () {
         var vuesPages = vues.filter(function (x) { return x.path.startsWith("pages/"); });
         scripts.push.apply(scripts, vuesPages.map(function (v) { return Bundler.convVueModuleToInitGlobalCode(v.componentKey, Bundler.convVueSfcToJsModule(v.contents)); }));
         // Set up frontend routes
-        scripts.push("\n      const routes = [\n        { path: '/', component: window.vues['Home'] },\n        " + vuesPages.map(function (v) { return "{ path: '/" + v.componentKey + "', component: window.vues['" + v.componentKey + "'] }"; }).join(", ") + "\n      ]\n      const router = new VueRouter({\n        routes,\n        base: '" + this.basePath + "',\n        mode: 'history'\n      })");
+        scripts.push("\n      const routes = [\n        { path: '/', component: window.vues['Home'] },\n        " + vuesPages.map(function (v) { return "{ path: '/" + v.componentKey + "', component: window.vues['" + v.componentKey + "'] }"; }).join(", ") + "\n      ]\n      const router = new VueRouter({\n        routes,\n        base: '" + (this.site.basePath || "/") + "',\n        mode: '" + (this.site.router.mode || 'history') + "'\n      })");
         // Call Vue
         scripts.push("\n      vueApp = new Vue({ \n        el: '#app', \n        router, \n        data: { \n          App: {\n            identity: {\n              showLogin() { alert(\"TODO\") },\n              logout() { alert(\"TODO\") },\n            }\n          }, \n          siteName: `" + this.site.siteName + "`,\n          deviceState: { user: null },\n          navMenuItems: " + JSON.stringify(vuesPages.filter(function (x) { return x.path.substr(9, 1) === x.path.substr(9, 1).toUpperCase(); }).map(function (x) { return ({ url: '/' + x.componentKey, text: x.path.substr(9, x.path.length - 9 - 4) }); })) + ",\n        },\n        created() {\n        }\n      })");
         return scripts.join("\n");
