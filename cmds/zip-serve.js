@@ -6,26 +6,26 @@ const http = require('http')
 const port = 3000
 
 const cache = (factory, immed) => {
-  const value = null, valid = false
-  const recompute = () => { value = factory(); valid = true; return value }
+  let value = null, valid = false, first = true
+  const recompute = () => { value = factory(first); first = false; valid = true; return value }
   const get = () => valid ? value : recompute()
-  const recomputeOnNextTick = () => { valid = false; setTimeout(get, 1) }
+  const recomputeSoon = (ms = 50) => { valid = false; setTimeout(get, ms) }
   const invalidate = () => valid = false
   if (immed) recompute()
   
   // Return a function with properties
   get.recompute = recompute
-  get.recomputeOnNextTick = recomputeOnNextTick
+  get.recomputeSoon = recomputeSoon
   get.invalidate = invalidate
   return get
 }
 
-const curContext = cache(() => require('./common.js').getZipContext(), true)
+const curContext = cache(first => {
+  if (!first) console.info(new Date().toLocaleTimeString(), "File change detected; reloading Zip site.")
+  return require('./common.js').getZipContext()
+}, true)
 const watchDir = dir => {
-  fs.watch(dir, {}, () => {
-    console.info(new Date().toLocaleTimeString(), "File change detected, reloading Zip site.")
-    curContext.recomputeOnNextTick()
-  })
+  fs.watch(dir, {}, () => curContext.recomputeSoon())
   // Also watch subdirectories
   for (const subdir of fs.readdirSync(dir)) {
     const subdirPath = path.join(dir, subdir)
