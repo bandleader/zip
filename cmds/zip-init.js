@@ -14,7 +14,7 @@ if (!package.scripts.build) package.scripts.build = "npx --no-install zip-build"
 
 if (!fs.existsSync("./zip-src")) {
     console.info("🥁 Creating `zip-src`...")
-    fs.mkdir("./zip-src")
+    fs.mkdirSync("./zip-src")
     fs.writeFileSync("./zip-src/pages--Home.vue", fs.readFileSync(__dirname + "/../default-files/pages--Home.vue"))
 }
 
