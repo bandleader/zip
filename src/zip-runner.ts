@@ -63,10 +63,12 @@ export default class ZipRunner {
       componentKey: minusExt(getFileName(localPath)).replace(/[^a-zA-Z0-9א-ת]+/g, "-"), 
       contents: this.site.files[localPath].data 
     }))
-    const vuesPages = vues.filter(x => x.path.startsWith("pages/"))
-    scripts.push(...vuesPages.map(v => bundler.convVueModuleToInitGlobalCode(v.componentKey, bundler.convVueSfcToJsModule(v.contents))))
+    scripts.push(...vues.map(v => bundler.convVueModuleToInitGlobalCode(v.componentKey, bundler.convVueSfcToJsModule(v.contents))))
+
+
 
     // Set up frontend routes
+    const vuesPages = vues.filter(x => x.path.startsWith("pages/"))
     scripts.push(`
       const routes = [
         { path: '/', component: window.vues['Home'] },
