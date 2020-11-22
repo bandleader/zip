@@ -13,9 +13,11 @@ declare type ZipFile = {
 };
 export default class ZipRunner {
     site: ZipSite;
+    backend: any;
     constructor(site: ZipSite);
     getFile(path: string): string;
     getFrontendIndex(): string;
+    startBackend(): void;
     handleRequest(path: string, req: any, resp: any): void;
     getFrontendScript(): string;
 }

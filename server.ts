@@ -26,7 +26,7 @@ const testZipRunner = new ZipRunner({
   siteName: "TestZip",
   files: filesFromDir("./default-files")
 })
-app.get("*", (req,resp) => testZipRunner.handleRequest(req.path, req, resp))
+app.all("*", (req,resp) => testZipRunner.handleRequest(req.path, req, resp))
 
 // Ready to listen!
 const listener = server.listen(process.env.PORT || 8005, () => {

@@ -194,6 +194,7 @@ var ZipRunner = /** @class */ (function () {
         this.site = site;
         site.siteBrand = site.siteBrand || site.siteName;
         site.router = site.router || {};
+        this.startBackend();
     }
     ZipRunner.prototype.getFile = function (path) {
         if (!this.site.files[path])
@@ -209,10 +210,37 @@ var ZipRunner = /** @class */ (function () {
         contents = contents.replace(/<\/body>/g, "<script>" + scriptsToInclude + "</script></body>");
         return contents;
     };
+    ZipRunner.prototype.startBackend = function () {
+        // TODO use clearableScheduler
+        var backendModuleText = this.getFile("backend.js");
+        this.backend = eval(Bundler.convJsModuleToFunction(backendModuleText, true));
+        if (typeof this.backend === 'function')
+            this.backend = this.backend();
+        console.log("Backend API methods:", Object.keys(this.backend).join(", "));
+    };
     ZipRunner.prototype.handleRequest = function (path, req, resp) {
+        var _a;
         console.log(path);
         if (path === "/favicon.ico") {
             resp.send("404 Not Found");
+        }
+        else if (path.startsWith("/api/")) {
+            var method = path.split("/")[2];
+            var sendErr = function (err) { return resp.send({ err: String(err) }); };
+            if (!this.backend[method]) {
+                sendErr("Backend method '" + method + "' not found");
+            }
+            else {
+                try {
+                    var args = JSON.parse(req.query.args || '[""]');
+                    var result = (_a = this.backend)[method].apply(_a, args);
+                    var resultPromise = result['then'] ? result : Promise.resolve(result);
+                    resultPromise.then(function (result) { return resp.send({ result: result }); }, sendErr);
+                }
+                catch (ex) {
+                    sendErr(ex);
+                }
+            }
         }
         else {
             resp.send(this.getFrontendIndex());
@@ -221,7 +249,13 @@ var ZipRunner = /** @class */ (function () {
     ZipRunner.prototype.getFrontendScript = function () {
         var _this = this;
         var scripts = [];
-        // TODO Create RPC for backend methods
+        // Create RPC for backend methods
+        var methods = Object.keys(this.backend);
+        scripts.push("\n      function _callZipBackend(method, ...args) {\n        const result = fetch(\"/api/\" + method + \"?args=\" + encodeURIComponent(JSON.stringify(args)), {\n          method: \"POST\"\n        })\n        const jsonResult = result.then(x => x.json())\n        return jsonResult.then(json => {\n          if (json.err) throw \"Server returned error: \" + json.err\n          return json.result\n        })\n      }\n\n      const Backend = {}\n    ");
+        for (var _i = 0, _a = Object.keys(this.backend); _i < _a.length; _i++) {
+            var key = _a[_i];
+            scripts.push("Backend['" + key + "'] = (...args) => _callZipBackend('" + key + "', args)");
+        }
         // Add all Vue components
         var getFileName = function (path) { return path.split("/")[path.split("/").length - 1]; };
         var minusExt = function (fileName) { return fileName.substr(0, fileName.lastIndexOf(".")); };

@@ -21,10 +21,24 @@ type ZipSite = {
 }
 type ZipFile = { data: string }
 
+function clearableScheduler() {
+  let timeouts: number[] = [], intervals: number[] = []
+  const addAndReturn = (arr: number[], item: number) => (arr.push(item), item)
+  return {
+    setTimeout: (fn: Function, ms: number) => addAndReturn(timeouts, setTimeout(fn, ms)),
+    setInterval: (fn: Function, ms: number) => addAndReturn(timeouts, setInterval(fn, ms)),
+    clear() { timeouts.forEach(clearTimeout); intervals.forEach(clearInterval); timeouts = []; intervals = [] },
+  }
+}
+
 export default class ZipRunner {
+  backend: any
+
   constructor(public site: ZipSite) { 
     site.siteBrand = site.siteBrand || site.siteName
     site.router = site.router || {}
+    
+    this.startBackend()
   }
 
   getFile(path: string) {
@@ -41,11 +55,37 @@ export default class ZipRunner {
     contents = contents.replace(/<\/body>/g, `<script>${scriptsToInclude}</script></body>`)
     return contents
   }
+
+  startBackend() {
+    // TODO use clearableScheduler
+    const backendModuleText = this.getFile("backend.js")
+    this.backend = eval(Bundler.convJsModuleToFunction(backendModuleText, true))
+    if (typeof this.backend === 'function') this.backend = this.backend()
+    console.log("Backend API methods:", Object.keys(this.backend).join(", "))
+  }
  
   handleRequest(path: string, req: any, resp: any) {
     console.log(path)
     if (path === "/favicon.ico") {
       resp.send("404 Not Found")
+    } else if (path.startsWith("/api/")) {
+      const method = path.split("/")[2]
+      const sendErr = (err: any) => resp.send({ err: String(err) })
+      if (!this.backend[method]) {
+        sendErr(`Backend method '${method}' not found`)
+      } else {
+        try {
+          const args = JSON.parse(req.query.args || '[""]')
+          const result = this.backend[method](...args)
+          const resultPromise: Promise<any> = result['then'] ? result : Promise.resolve(result)
+          resultPromise.then(
+            result => resp.send({ result }),
+            sendErr
+          )          
+        } catch (ex) {
+          sendErr(ex)
+        }
+      }
     } else {
       resp.send(this.getFrontendIndex())
     }
@@ -53,7 +93,25 @@ export default class ZipRunner {
 
   getFrontendScript() {
     const scripts: string[] = []
-    // TODO Create RPC for backend methods
+    // Create RPC for backend methods
+    const methods = Object.keys(this.backend)
+    scripts.push(`
+      function _callZipBackend(method, ...args) {
+        const result = fetch("/api/" + method + "?args=" + encodeURIComponent(JSON.stringify(args)), {
+          method: "POST"
+        })
+        const jsonResult = result.then(x => x.json())
+        return jsonResult.then(json => {
+          if (json.err) throw "Server returned error: " + json.err
+          return json.result
+        })
+      }
+
+      const Backend = {}
+    `)
+    for (const key of Object.keys(this.backend)) {
+      scripts.push(`Backend['${key}'] = (...args) => _callZipBackend('${key}', args)`)
+    }
 
     // Add all Vue components
     const getFileName = (path: string) => path.split("/")[path.split("/").length-1]
