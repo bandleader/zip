@@ -18,8 +18,7 @@
   "scripts": {
     "build": "rollup -c",
     "watch": "rollup -cw",
-    "start": "ts-node-dev --respawn --transpile-only ./server.ts",
-    "serve": "ts-node-dev --respawn --transpile-only ./server.ts"
+    "test-serve": "ts-node-dev --respawn --transpile-only --compiler-options \"{\\\"module\\\": \\\"CommonJS\\\"}\" ./server.ts"
   },
   "dependencies": {
     "@types/express": "^4.17.6",
