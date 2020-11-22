@@ -77,12 +77,12 @@ var Bundler = /** @class */ (function () {
     Bundler.convVueModuleToInitGlobalCode = function (componentKey, jsModuleCode) {
         return "\n            window.vues = window.vues || {}\n            window.vues['" + componentKey + "'] = " + Bundler.convJsModuleToFunction(jsModuleCode) + "\n            Vue.component(\"" + componentKey + "\", window.vues['" + componentKey + "']);\n        ";
     };
-    Bundler.convVueClassComponent = function (vueClassComponentModuleCode) {
+    Bundler.vueClassTransformerScript = function () {
         // We also include the __assign function replacement for Object.assign, since Rollup is transpiling {...foo} to that.
         // In the future we should just include a Zip client JS file which should already be transpiled
-        return "\n            var __assign = function() { \n                __assign = Object.assign || function __assign(t) {\n                    for (var s, i = 1, n = arguments.length; i < n; i++) {\n                        s = arguments[i];\n                        for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p)) t[p] = s[p];\n                    }\n                    return t;\n                };\n                return __assign.apply(this, arguments);\n            }\n            const conv = " + vueClassComponent + "\n            const possiblyClassComponent = " + Bundler.convJsModuleToFunction(vueClassComponentModuleCode) + "\n            export default conv(possiblyClassComponent)\n        ";
+        return "\n            function() {\n                var __assign = function() { \n                    __assign = Object.assign || function __assign(t) {\n                        for (var s, i = 1, n = arguments.length; i < n; i++) {\n                            s = arguments[i];\n                            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p)) t[p] = s[p];\n                        }\n                        return t;\n                    };\n                    return __assign.apply(this, arguments);\n                }\n                return " + vueClassComponent + "\n            }\n        ";
     };
-    Bundler.convVueSfcToJsModule = function (vueSfcCode) {
+    Bundler.convVueSfcToJsModule = function (vueSfcCode, classTransformer) {
         var getTag = function (tag, text) {
             var start = text.indexOf('>', text.indexOf("<" + tag)) + 1;
             var end = text.lastIndexOf("</" + tag + ">");
@@ -92,12 +92,14 @@ var Bundler = /** @class */ (function () {
                 return "";
             return text.substring(start, end);
         };
-        var script = getTag("script", vueSfcCode) || "export default {}";
-        var script2 = Bundler.convJsModuleToFunction(script);
+        var scriptModule = getTag("script", vueSfcCode) || "export default {}";
+        var scriptIife = Bundler.convJsModuleToFunction(scriptModule);
+        if (classTransformer)
+            scriptIife = "(" + classTransformer + ")(" + scriptIife + ")";
         var template = getTag("template", vueSfcCode);
         var css = getTag("style", vueSfcCode);
         var btoa = function (str) { return new Buffer(str).toString('base64'); };
-        return "\n            const exp = " + script2 + ";\n            exp.template = atob(\"" + btoa(template) + "\")\n            const addTag = (where, tagName, attrs) => {           \n                const el = document.createElement(tagName)\n                for (const k of Object.keys(attrs)) el[k] = attrs[k]\n                where.appendChild(el)\n            }\n            const addCss = css => addTag(document.head, \"style\", {type: 'text/css', innerHTML: css})                  \n            let alreadyAddedCss = false\n            // TODO remove too\n            const oldCreated = exp.created\n            exp.created = function () {\n                if (!alreadyAddedCss) addCss(atob(\"" + btoa(css) + "\"))\n                alreadyAddedCss = true\n                if (oldCreated) oldCreated.call(this)\n            }\n            export default exp\n        ";
+        return "\n            let exp = " + scriptIife + ";\n            exp.template = atob(\"" + btoa(template) + "\")\n            const addTag = (where, tagName, attrs) => {           \n                const el = document.createElement(tagName)\n                for (const k of Object.keys(attrs)) el[k] = attrs[k]\n                where.appendChild(el)\n            }\n            const addCss = css => addTag(document.head, \"style\", {type: 'text/css', innerHTML: css})                  \n            let alreadyAddedCss = false\n            // TODO remove too\n            const oldCreated = exp.created\n            exp.created = function () {\n                if (!alreadyAddedCss) addCss(atob(\"" + btoa(css) + "\"))\n                alreadyAddedCss = true\n                if (oldCreated) oldCreated.call(this)\n            }\n            export default exp\n        ";
     };
     return Bundler;
 }());
@@ -143,7 +145,6 @@ function vueClassComponent(opts, cl) {
         if (ignoreOthers === void 0) { ignoreOthers = false; }
         if (propsToIgnore.includes(prop))
             return;
-        propsToIgnore.push(prop); // Never consume a property more than once
         var value = obj[prop], descriptor = Object.getOwnPropertyDescriptor(obj, prop);
         if (['created', 'mounted', 'destroyed'].includes(prop)) {
             ret[prop] = value;
@@ -161,12 +162,13 @@ function vueClassComponent(opts, cl) {
             ret.props[prop] = obj[prop];
         }
         else if (!ignoreOthers) {
-            throw "VueClassComponent: Class prop " + prop + " must be a method or a getter";
+            throw "VueClassComponent: Class prop `" + prop + "` must be a method or a getter";
         }
-        else {
-            // It's a data prop. Silently ignore it (but remove it from the ignore list, so that it gets processed when we create the instance)
-            propsToIgnore.splice(propsToIgnore.length - 1, 1);
+        else { // It's a data prop, from the "check instance properties" section below
+            return; // Silently ignore it; it will be used in `data()` only
         }
+        // If we were successful, ignore the prop in subsequent checks
+        propsToIgnore.push(prop);
     };
     // Populate methods/computeds/props from the class's prototype
     for (var _i = 0, _a = Object.getOwnPropertyNames(cl.prototype); _i < _a.length; _i++) {
@@ -230,7 +232,7 @@ var ZipRunner = /** @class */ (function () {
             componentKey: minusExt(getFileName(localPath)).replace(/[^a-zA-Z0-9א-ת]+/g, "-"),
             contents: _this.site.files[localPath].data
         }); });
-        scripts.push.apply(scripts, vues.map(function (v) { return Bundler.convVueModuleToInitGlobalCode(v.componentKey, Bundler.convVueClassComponent(Bundler.convVueSfcToJsModule(v.contents))); }));
+        scripts.push.apply(scripts, vues.map(function (v) { return Bundler.convVueModuleToInitGlobalCode(v.componentKey, Bundler.convVueSfcToJsModule(v.contents, Bundler.vueClassTransformerScript())); }));
         // Set up frontend routes
         var vuesPages = vues.filter(function (x) { return x.path.startsWith("pages/"); });
         scripts.push("\n      const routes = [\n        { path: '/', component: window.vues['Home'] },\n        " + vuesPages.map(function (v) { return "{ path: '/" + v.componentKey + "', component: window.vues['" + v.componentKey + "'] }"; }).join(", ") + "\n      ]\n      const router = new VueRouter({\n        routes,\n        base: '" + (this.site.basePath || "/") + "',\n        mode: '" + (this.site.router.mode || 'history') + "'\n      })");
