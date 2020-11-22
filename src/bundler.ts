@@ -146,7 +146,6 @@ function vueClassComponent(opts: Record<string, any>, cl: any) {
 
     const consumeProp = (obj: Record<string, any>, prop: string, ignoreOthers = false) => {
       if (propsToIgnore.includes(prop)) return;
-      propsToIgnore.push(prop) // Never consume a property more than once
   
       const value = obj[prop], descriptor = Object.getOwnPropertyDescriptor(obj, prop)
       if (['created', 'mounted', 'destroyed'].includes(prop)) {
@@ -161,11 +160,13 @@ function vueClassComponent(opts: Record<string, any>, cl: any) {
       } else if (value && value._isProp) {
         ret.props[prop] = obj[prop]
       } else if (!ignoreOthers) {
-        throw `VueClassComponent: Class prop ${prop} must be a method or a getter`
-      } else {
-        // It's a data prop. Silently ignore it (but remove it from the ignore list, so that it gets processed when we create the instance)
-        propsToIgnore.splice(propsToIgnore.length - 1, 1)
+        throw `VueClassComponent: Class prop \`${prop}\` must be a method or a getter`
+      } else { // It's a data prop, from the "check instance properties" section below
+        return; // Silently ignore it; it will be used in `data()` only
       }
+
+      // If we were successful, ignore the prop in subsequent checks
+      propsToIgnore.push(prop)
     }  
     
     // Populate methods/computeds/props from the class's prototype
