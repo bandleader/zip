@@ -76,7 +76,9 @@ var Bundler = /** @class */ (function () {
         return "\n            window.vues = window.vues || {}\n            window.vues['" + componentKey + "'] = " + Bundler.convJsModuleToFunction(jsModuleCode) + "\n            Vue.component(\"" + componentKey + "\", window.vues['" + componentKey + "']);\n        ";
     };
     Bundler.convVueClassComponent = function (vueClassComponentModuleCode) {
-        return "\n            const conv = " + vueClassComponent + "\n            const possiblyClassComponent = " + Bundler.convJsModuleToFunction(vueClassComponentModuleCode) + "\n            export default conv(possiblyClassComponent)\n        ";
+        // We also include the __assign function replacement for Object.assign, since Rollup is transpiling {...foo} to that.
+        // In the future we should just include a Zip client JS file which should already be transpiled
+        return "\n            var __assign = function() { \n                __assign = Object.assign || function __assign(t) {\n                    for (var s, i = 1, n = arguments.length; i < n; i++) {\n                        s = arguments[i];\n                        for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p)) t[p] = s[p];\n                    }\n                    return t;\n                };\n                return __assign.apply(this, arguments);\n            }\n            const conv = " + vueClassComponent + "\n            const possiblyClassComponent = " + Bundler.convJsModuleToFunction(vueClassComponentModuleCode) + "\n            export default conv(possiblyClassComponent)\n        ";
     };
     Bundler.convVueSfcToJsModule = function (vueSfcCode) {
         var getTag = function (tag, text) {

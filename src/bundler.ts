@@ -55,7 +55,19 @@ export default class Bundler {
         `
     }
     static convVueClassComponent(vueClassComponentModuleCode: string) {
+        // We also include the __assign function replacement for Object.assign, since Rollup is transpiling {...foo} to that.
+        // In the future we should just include a Zip client JS file which should already be transpiled
         return `
+            var __assign = function() { 
+                __assign = Object.assign || function __assign(t) {
+                    for (var s, i = 1, n = arguments.length; i < n; i++) {
+                        s = arguments[i];
+                        for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p)) t[p] = s[p];
+                    }
+                    return t;
+                };
+                return __assign.apply(this, arguments);
+            }
             const conv = ${vueClassComponent}
             const possiblyClassComponent = ${Bundler.convJsModuleToFunction(vueClassComponentModuleCode)}
             export default conv(possiblyClassComponent)
