@@ -16,7 +16,13 @@ function getPackageRoot() {
 function filesFromDir(localPath) {
     const ret = {}
     for (const file of fs.readdirSync(localPath)) {
-      ret[file.replace(/--/g, "/")] = { data: fs.readFileSync(`${localPath}/${file}`).toString() }
+        const path = `${localPath}/${file}`
+        if (fs.statSync(path).isDirectory()) {
+            const loadDir = filesFromDir(path)
+            for (const key in loadDir) ret[`${file}/${key}`] = loadDir[key]
+        } else {
+            ret[file.replace(/--/g, "/")] = { data: fs.readFileSync(path).toString() }
+        }
     }
     return ret
 }
