@@ -216,11 +216,13 @@ var ZipRunner = /** @class */ (function () {
         this.backend = eval(Bundler.convJsModuleToFunction(backendModuleText, true));
         if (typeof this.backend === 'function')
             this.backend = this.backend();
-        console.log("Backend API methods:", Object.keys(this.backend).join(", "));
+        if (Object.keys(this.backend).join() !== "hello") {
+            console.log("Loaded backend with methods:", Object.keys(this.backend).join(", "));
+        }
     };
     ZipRunner.prototype.handleRequest = function (path, req, resp) {
         var _a;
-        console.log(path);
+        // console.log(path)
         if (path === "/favicon.ico") {
             resp.send("404 Not Found");
         }
@@ -251,10 +253,11 @@ var ZipRunner = /** @class */ (function () {
         var scripts = [];
         // Create RPC for backend methods
         var methods = Object.keys(this.backend);
-        scripts.push("\n      function _callZipBackend(method, ...args) {\n        const result = fetch(\"/api/\" + method + \"?args=\" + encodeURIComponent(JSON.stringify(args)), {\n          method: \"POST\"\n        })\n        const jsonResult = result.then(x => x.json())\n        return jsonResult.then(json => {\n          if (json.err) throw \"Server returned error: \" + json.err\n          return json.result\n        })\n      }\n\n      const Backend = {}\n    ");
+        scripts.push("\n      function AsyncLoader(factory, _default) {\n        var fired = false\n        const ret = function() { \n          if (!fired) fire()\n          return ret.value\n        }        \n        Vue.util.defineReactive(ret, 'value', _default || null)\n        Vue.util.defineReactive(ret, 'error', null)\n        Vue.util.defineReactive(ret, 'loading', false)\n        Vue.util.defineReactive(ret, 'ready', false)\n        const fire = () => {\n          fired = true\n          ret.loading = true\n          const result = (typeof factory === 'function') ? factory() : factory\n          const resultPromise = result.then ? result : Promise.resolve(result)\n          resultPromise.then(result => {\n            ret.value = result\n            ret.loading = false\n            ret.ready = true\n          }, err => {\n            ret.error = err\n            ret.loading = false\n          })\n        }\n        fire()\n        return ret\n      }\n\n      /*function AsyncLoader(factory, _default) {\n        const ret = AsyncLoaderLazy(factory, _default)\n        ret()\n        return ret\n      }*/\n\n      function _callZipBackend(method, ...args) {\n        const result = fetch(\"/api/\" + method + \"?args=\" + encodeURIComponent(JSON.stringify(args)), {\n          method: \"POST\"\n        })\n        const jsonResult = result.then(x => x.json())\n        return jsonResult.then(json => {\n          if (json.err) throw \"Server returned error: \" + json.err\n          return json.result\n        })\n      }\n\n      const Backend = {}\n    ");
         for (var _i = 0, _a = Object.keys(this.backend); _i < _a.length; _i++) {
             var key = _a[_i];
-            scripts.push("Backend['" + key + "'] = (...args) => _callZipBackend('" + key + "', args)");
+            scripts.push("Backend['" + key + "'] = (...args) => _callZipBackend('" + key + "', ...args)");
+            scripts.push("Backend['" + key + "'].loader = (_default, ...args) => AsyncLoader(() => _callZipBackend('" + key + "', ...args), _default)");
         }
         // Add all Vue components
         var getFileName = function (path) { return path.split("/")[path.split("/").length - 1]; };

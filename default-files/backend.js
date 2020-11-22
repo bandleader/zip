@@ -1,3 +1,6 @@
 export default {
-    hello(name) { return `Hey there, ${name}!` }
+    hello(name) { 
+        if (!name) throw "Name is required"
+        return `Hey there, ${name}!` 
+    }
 }

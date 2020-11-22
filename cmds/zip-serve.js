@@ -37,7 +37,10 @@ watchDir(curContext().root)
 
 const server = http.createServer((request, response) => {
   console.log(request.method, request.url)
-  response.end(curContext().runner.getFrontendIndex())
+  request.query = require('url').parse(request.url, true).query
+  response.send = x => (typeof x === 'object') ? response.end(JSON.stringify(x)) : response.end(x)
+  curContext().runner.handleRequest(request.url.split("?")[0], request, response)
+  //response.end(curContext().runner.getFrontendIndex())
 })
 
 server.listen(port, (err) => {
