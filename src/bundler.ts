@@ -58,7 +58,7 @@ export default class Bundler {
         // We also include the __assign function replacement for Object.assign, since Rollup is transpiling {...foo} to that.
         // In the future we should just include a Zip client JS file which should already be transpiled
         return `
-            function() {
+            (function() {
                 var __assign = function() { 
                     __assign = Object.assign || function __assign(t) {
                         for (var s, i = 1, n = arguments.length; i < n; i++) {
@@ -70,7 +70,7 @@ export default class Bundler {
                     return __assign.apply(this, arguments);
                 }
                 return ${vueClassComponent}
-            }
+            })()
         `
     }
     static convVueSfcToJsModule(vueSfcCode: string, classTransformer?: string) {

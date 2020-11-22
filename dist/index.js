@@ -80,7 +80,7 @@ var Bundler = /** @class */ (function () {
     Bundler.vueClassTransformerScript = function () {
         // We also include the __assign function replacement for Object.assign, since Rollup is transpiling {...foo} to that.
         // In the future we should just include a Zip client JS file which should already be transpiled
-        return "\n            function() {\n                var __assign = function() { \n                    __assign = Object.assign || function __assign(t) {\n                        for (var s, i = 1, n = arguments.length; i < n; i++) {\n                            s = arguments[i];\n                            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p)) t[p] = s[p];\n                        }\n                        return t;\n                    };\n                    return __assign.apply(this, arguments);\n                }\n                return " + vueClassComponent + "\n            }\n        ";
+        return "\n            (function() {\n                var __assign = function() { \n                    __assign = Object.assign || function __assign(t) {\n                        for (var s, i = 1, n = arguments.length; i < n; i++) {\n                            s = arguments[i];\n                            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p)) t[p] = s[p];\n                        }\n                        return t;\n                    };\n                    return __assign.apply(this, arguments);\n                }\n                return " + vueClassComponent + "\n            })()\n        ";
     };
     Bundler.convVueSfcToJsModule = function (vueSfcCode, classTransformer) {
         var getTag = function (tag, text) {
@@ -111,7 +111,7 @@ function vueClassComponent(opts, cl) {
     if (typeof cl === 'object')
         return cl; // This is a regular Vue component, just return
     if (typeof cl !== 'function')
-        throw "VueClassComponent: final argument must be a class";
+        throw "VueClassComponent: Expected a class, not " + typeof cl;
     var propsToIgnore = ['prototype', 'length', 'name', 'caller', 'callee'];
     var copyData = function (source, target) {
         var insPropsOnly = Object.getOwnPropertyNames(source).filter(function (x) { return !propsToIgnore.includes(x); });
@@ -132,7 +132,7 @@ function vueClassComponent(opts, cl) {
     // Validate/default for opts
     opts = opts || {};
     if (typeof opts !== 'object')
-        throw "VueClassComponent: first argument must be an options object";
+        throw "VueClassComponent: `opts` must be an options object, not " + typeof opts;
     // Create main object
     var coercePropsArrayToObj = function (x) { return Array.isArray(x) ? x.reduce(function (a, c) { return (a[c] = {}, a); }, {}) : x; };
     var ret = __assign(__assign({}, opts), { name: cl.name, computed: __assign({}, (opts.computed || {})), methods: __assign({}, (opts.methods || {})), props: coercePropsArrayToObj(opts.props || {}), data: function () {
