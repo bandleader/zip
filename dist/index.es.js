@@ -216,7 +216,7 @@ var ZipRunner = /** @class */ (function () {
         this.backend = eval(Bundler.convJsModuleToFunction(backendModuleText, true));
         if (typeof this.backend === 'function')
             this.backend = this.backend();
-        if (Object.keys(this.backend).join() !== "hello") {
+        if (Object.keys(this.backend).filter(function (x) { return x !== 'greeting'; }).length) {
             console.log("Loaded backend with methods:", Object.keys(this.backend).join(", "));
         }
     };

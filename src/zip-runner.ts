@@ -61,7 +61,7 @@ export default class ZipRunner {
     const backendModuleText = this.getFile("backend.js")
     this.backend = eval(Bundler.convJsModuleToFunction(backendModuleText, true))
     if (typeof this.backend === 'function') this.backend = this.backend()
-    if (Object.keys(this.backend).join() !== "hello") {
+    if (Object.keys(this.backend).filter(x => x !== 'greeting').length) {
       console.log("Loaded backend with methods:", Object.keys(this.backend).join(", "))
     }
   }
