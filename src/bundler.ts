@@ -112,7 +112,7 @@ export default class Bundler {
 function vueClassComponent(opts: Record<string, any>, cl: any) {
     if (arguments.length <= 1) { cl = arguments[0]; opts = undefined } // Allow first arg to be omitted
     if (typeof cl === 'object') return cl // This is a regular Vue component, just return
-    if (typeof cl !== 'function') throw "VueClassComponent: final argument must be a class"
+    if (typeof cl !== 'function') throw "VueClassComponent: Expected a class, not " + typeof cl
   
     const propsToIgnore = ['prototype', 'length', 'name', 'caller', 'callee']
   
@@ -127,7 +127,7 @@ function vueClassComponent(opts: Record<string, any>, cl: any) {
     
     // Validate/default for opts
     opts = opts || {}
-    if (typeof opts !== 'object') throw "VueClassComponent: first argument must be an options object"
+    if (typeof opts !== 'object') throw "VueClassComponent: `opts` must be an options object, not " + typeof opts
 
     // Create main object
     const coercePropsArrayToObj = (x: object) => Array.isArray(x) ? x.reduce((a,c) => (a[c] = {}, a), {}) : x
