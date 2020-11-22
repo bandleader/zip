@@ -54,26 +54,26 @@ export default class Bundler {
             Vue.component("${componentKey}", window.vues['${componentKey}']);
         `
     }
-    static convVueClassComponent(vueClassComponentModuleCode: string) {
+    static vueClassTransformerScript() {
         // We also include the __assign function replacement for Object.assign, since Rollup is transpiling {...foo} to that.
         // In the future we should just include a Zip client JS file which should already be transpiled
         return `
-            var __assign = function() { 
-                __assign = Object.assign || function __assign(t) {
-                    for (var s, i = 1, n = arguments.length; i < n; i++) {
-                        s = arguments[i];
-                        for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p)) t[p] = s[p];
-                    }
-                    return t;
-                };
-                return __assign.apply(this, arguments);
+            function() {
+                var __assign = function() { 
+                    __assign = Object.assign || function __assign(t) {
+                        for (var s, i = 1, n = arguments.length; i < n; i++) {
+                            s = arguments[i];
+                            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p)) t[p] = s[p];
+                        }
+                        return t;
+                    };
+                    return __assign.apply(this, arguments);
+                }
+                return ${vueClassComponent}
             }
-            const conv = ${vueClassComponent}
-            const possiblyClassComponent = ${Bundler.convJsModuleToFunction(vueClassComponentModuleCode)}
-            export default conv(possiblyClassComponent)
         `
     }
-    static convVueSfcToJsModule(vueSfcCode: string) {
+    static convVueSfcToJsModule(vueSfcCode: string, classTransformer?: string) {
         const getTag = (tag: string, text: string) => {
         const start = text.indexOf('>', text.indexOf(`<${tag}`,)) + 1
         const end = text.lastIndexOf(`</${tag}>`)
@@ -81,13 +81,14 @@ export default class Bundler {
         if (end===-1) return ""
         return text.substring(start, end)
         }
-        const script = getTag("script", vueSfcCode) || "export default {}"
-        const script2 = Bundler.convJsModuleToFunction(script)                  
+        const scriptModule = getTag("script", vueSfcCode) || "export default {}"
+        let scriptIife = Bundler.convJsModuleToFunction(scriptModule)
+        if (classTransformer) scriptIife = `(${classTransformer})(${scriptIife})`
         const template = getTag("template", vueSfcCode)
         const css = getTag("style", vueSfcCode)
         const btoa = (str: string) => new Buffer(str).toString('base64')
         return `
-            const exp = ${script2};
+            let exp = ${scriptIife};
             exp.template = atob("${btoa(template)}")
             const addTag = (where, tagName, attrs) => {           
                 const el = document.createElement(tagName)
