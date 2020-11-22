@@ -1,5 +1,31 @@
 'use strict';
 
+/*! *****************************************************************************
+Copyright (c) Microsoft Corporation.
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE.
+***************************************************************************** */
+
+var __assign = function() {
+    __assign = Object.assign || function __assign(t) {
+        for (var s, i = 1, n = arguments.length; i < n; i++) {
+            s = arguments[i];
+            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p)) t[p] = s[p];
+        }
+        return t;
+    };
+    return __assign.apply(this, arguments);
+};
+
 var Bundler = /** @class */ (function () {
     function Bundler() {
     }
@@ -28,6 +54,7 @@ var Bundler = /** @class */ (function () {
         */
         if (execute === void 0) { execute = true; }
         jsCode = jsCode.replace("export default", "_defaultExport = ");
+        jsCode = jsCode.split("\n").map(function (x) { return "  " + x; }).join("\n"); // Indent nicely
         jsCode = "(function() {\n  let _defaultExport = undefined\n\n" + jsCode + "\n\n\n  return _defaultExport\n})" + (execute ? "()\n" : "\n");
         return jsCode;
     };
@@ -50,6 +77,9 @@ var Bundler = /** @class */ (function () {
     Bundler.convVueModuleToInitGlobalCode = function (componentKey, jsModuleCode) {
         return "\n            window.vues = window.vues || {}\n            window.vues['" + componentKey + "'] = " + Bundler.convJsModuleToFunction(jsModuleCode) + "\n            Vue.component(\"" + componentKey + "\", window.vues['" + componentKey + "']);\n        ";
     };
+    Bundler.convVueClassComponent = function (vueClassComponentModuleCode) {
+        return "\n            const conv = " + vueClassComponent + "\n            const possiblyClassComponent = " + Bundler.convJsModuleToFunction(vueClassComponentModuleCode) + "\n            export default conv(possiblyClassComponent)\n        ";
+    };
     Bundler.convVueSfcToJsModule = function (vueSfcCode) {
         var getTag = function (tag, text) {
             var start = text.indexOf('>', text.indexOf("<" + tag)) + 1;
@@ -69,6 +99,92 @@ var Bundler = /** @class */ (function () {
     };
     return Bundler;
 }());
+function vueClassComponent(opts, cl) {
+    if (arguments.length <= 1) {
+        cl = arguments[0];
+        opts = undefined;
+    } // Allow first arg to be omitted
+    if (typeof cl === 'object')
+        return cl; // This is a regular Vue component, just return
+    if (typeof cl !== 'function')
+        throw "VueClassComponent: final argument must be a class";
+    var propsToIgnore = ['prototype', 'length', 'name', 'caller', 'callee'];
+    var copyData = function (source, target) {
+        var insPropsOnly = Object.getOwnPropertyNames(source).filter(function (x) { return !propsToIgnore.includes(x); });
+        for (var _i = 0, insPropsOnly_1 = insPropsOnly; _i < insPropsOnly_1.length; _i++) {
+            var prop = insPropsOnly_1[_i];
+            target[prop] = source[prop];
+        }
+    };
+    // Allow `opts` to be specified as a method on the class, or as a static object
+    if (!opts && typeof cl.prototype.opts === 'function') {
+        opts = cl.prototype.opts();
+        propsToIgnore.push("opts");
+    }
+    if (!opts && typeof cl.opts === 'object') {
+        opts = cl.opts;
+        propsToIgnore.push("opts");
+    }
+    // Validate/default for opts
+    opts = opts || {};
+    if (typeof opts !== 'object')
+        throw "VueClassComponent: first argument must be an options object";
+    // Create main object
+    var coercePropsArrayToObj = function (x) { return Array.isArray(x) ? x.reduce(function (a, c) { return (a[c] = {}, a); }, {}) : x; };
+    var ret = __assign(__assign({}, opts), { name: cl.name, computed: __assign({}, (opts.computed || {})), methods: __assign({}, (opts.methods || {})), props: coercePropsArrayToObj(opts.props || {}), data: function () {
+            var newInstance = new cl();
+            var data = {};
+            copyData(newInstance, data);
+            return data;
+        } });
+    var consumeProp = function (obj, prop, ignoreOthers) {
+        if (ignoreOthers === void 0) { ignoreOthers = false; }
+        if (propsToIgnore.includes(prop))
+            return;
+        propsToIgnore.push(prop); // Never consume a property more than once
+        var value = obj[prop], descriptor = Object.getOwnPropertyDescriptor(obj, prop);
+        if (['created', 'mounted', 'destroyed'].includes(prop)) {
+            ret[prop] = value;
+        }
+        else if (descriptor && descriptor.get) {
+            ret.computed[prop] = {
+                get: descriptor.get,
+                set: descriptor.set
+            };
+        }
+        else if (typeof value === 'function') {
+            ret.methods[prop] = value;
+        }
+        else if (value && value._isProp) {
+            ret.props[prop] = obj[prop];
+        }
+        else if (!ignoreOthers) {
+            throw "VueClassComponent: Class prop " + prop + " must be a method or a getter";
+        }
+        else {
+            // It's a data prop. Silently ignore it (but remove it from the ignore list, so that it gets processed when we create the instance)
+            propsToIgnore.splice(propsToIgnore.length - 1, 1);
+        }
+    };
+    // Populate methods/computeds/props from the class's prototype
+    for (var _i = 0, _a = Object.getOwnPropertyNames(cl.prototype); _i < _a.length; _i++) {
+        var prop = _a[_i];
+        consumeProp(cl.prototype, prop);
+    }
+    // Experimental: check static properties
+    for (var _b = 0, _c = Object.getOwnPropertyNames(cl); _b < _c.length; _b++) {
+        var prop = _c[_b];
+        consumeProp(cl, prop);
+    }
+    // Experimental: check instance properties
+    var dummyInstance = new cl();
+    for (var _d = 0, _e = Object.getOwnPropertyNames(dummyInstance); _d < _e.length; _d++) {
+        var prop = _e[_d];
+        consumeProp(dummyInstance, prop, true);
+    }
+    // Done!
+    return ret;
+}
 
 //   ________  ___  ________   
 var ZipRunner = /** @class */ (function () {
@@ -112,7 +228,7 @@ var ZipRunner = /** @class */ (function () {
             componentKey: minusExt(getFileName(localPath)).replace(/[^a-zA-Z0-9א-ת]+/g, "-"),
             contents: _this.site.files[localPath].data
         }); });
-        scripts.push.apply(scripts, vues.map(function (v) { return Bundler.convVueModuleToInitGlobalCode(v.componentKey, Bundler.convVueSfcToJsModule(v.contents)); }));
+        scripts.push.apply(scripts, vues.map(function (v) { return Bundler.convVueModuleToInitGlobalCode(v.componentKey, Bundler.convVueClassComponent(Bundler.convVueSfcToJsModule(v.contents))); }));
         // Set up frontend routes
         var vuesPages = vues.filter(function (x) { return x.path.startsWith("pages/"); });
         scripts.push("\n      const routes = [\n        { path: '/', component: window.vues['Home'] },\n        " + vuesPages.map(function (v) { return "{ path: '/" + v.componentKey + "', component: window.vues['" + v.componentKey + "'] }"; }).join(", ") + "\n      ]\n      const router = new VueRouter({\n        routes,\n        base: '" + (this.site.basePath || "/") + "',\n        mode: '" + (this.site.router.mode || 'history') + "'\n      })");

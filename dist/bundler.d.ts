@@ -4,6 +4,7 @@ export default class Bundler {
     static getLoaderCode(modules: Dict<string>): string;
     static getLoader(modules: Dict<Function>): (moduleName: string) => Function;
     static convVueModuleToInitGlobalCode(componentKey: string, jsModuleCode: string): string;
+    static convVueClassComponent(vueClassComponentModuleCode: string): string;
     static convVueSfcToJsModule(vueSfcCode: string): string;
 }
 export {};

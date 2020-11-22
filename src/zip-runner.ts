@@ -7,7 +7,7 @@
 //      \|_______|\|__|\|__|   
 //                             
 
-import bundler from './bundler'
+import Bundler from './bundler'
 
 type Dict<T> = Record<string, T>
 type ZipSite = { 
@@ -63,7 +63,7 @@ export default class ZipRunner {
       componentKey: minusExt(getFileName(localPath)).replace(/[^a-zA-Z0-9א-ת]+/g, "-"), 
       contents: this.site.files[localPath].data 
     }))
-    scripts.push(...vues.map(v => bundler.convVueModuleToInitGlobalCode(v.componentKey, bundler.convVueSfcToJsModule(v.contents))))
+    scripts.push(...vues.map(v => Bundler.convVueModuleToInitGlobalCode(v.componentKey, Bundler.convVueClassComponent(Bundler.convVueSfcToJsModule(v.contents)))))
 
 
 

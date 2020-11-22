@@ -26,6 +26,7 @@ export default class Bundler {
         */
         
         jsCode = jsCode.replace("export default", "_defaultExport = ")
+        jsCode = jsCode.split("\n").map(x => `  ${x}`).join("\n") // Indent nicely
         jsCode = "(function() {\n  let _defaultExport = undefined\n\n" + jsCode + "\n\n\n  return _defaultExport\n})" + (execute ? "()\n" : "\n")
         return jsCode
     }
@@ -51,6 +52,13 @@ export default class Bundler {
             window.vues = window.vues || {}
             window.vues['${componentKey}'] = ${Bundler.convJsModuleToFunction(jsModuleCode)}
             Vue.component("${componentKey}", window.vues['${componentKey}']);
+        `
+    }
+    static convVueClassComponent(vueClassComponentModuleCode: string) {
+        return `
+            const conv = ${vueClassComponent}
+            const possiblyClassComponent = ${Bundler.convJsModuleToFunction(vueClassComponentModuleCode)}
+            export default conv(possiblyClassComponent)
         `
     }
     static convVueSfcToJsModule(vueSfcCode: string) {
@@ -86,4 +94,78 @@ export default class Bundler {
             export default exp
         `
     }
+}
+
+function vueClassComponent(opts: Record<string, any>, cl: any) {
+    if (arguments.length <= 1) { cl = arguments[0]; opts = undefined } // Allow first arg to be omitted
+    if (typeof cl === 'object') return cl // This is a regular Vue component, just return
+    if (typeof cl !== 'function') throw "VueClassComponent: final argument must be a class"
+  
+    const propsToIgnore = ['prototype', 'length', 'name', 'caller', 'callee']
+  
+    const copyData = (source: Record<string, any>, target: Record<string, any>) => {
+      const insPropsOnly = Object.getOwnPropertyNames(source).filter(x => !propsToIgnore.includes(x))
+      for (const prop of insPropsOnly) target[prop] = source[prop]
+    }
+  
+    // Allow `opts` to be specified as a method on the class, or as a static object
+    if (!opts && typeof cl.prototype.opts === 'function') { opts = cl.prototype.opts(); propsToIgnore.push("opts") }
+    if (!opts && typeof cl.opts === 'object') { opts = cl.opts; propsToIgnore.push("opts") }
+    
+    // Validate/default for opts
+    opts = opts || {}
+    if (typeof opts !== 'object') throw "VueClassComponent: first argument must be an options object"
+
+    // Create main object
+    const coercePropsArrayToObj = (x: object) => Array.isArray(x) ? x.reduce((a,c) => (a[c] = {}, a), {}) : x
+    const ret = {
+      ...opts,
+      name: cl.name,
+      computed: {...(opts.computed || {})},
+      methods: {...(opts.methods || {})},
+      props: coercePropsArrayToObj(opts.props || {}),
+      data() { 
+        const newInstance = new cl()
+        var data = {}
+        copyData(newInstance, data)
+        return data
+      },
+    }
+
+    const consumeProp = (obj: Record<string, any>, prop: string, ignoreOthers = false) => {
+      if (propsToIgnore.includes(prop)) return;
+      propsToIgnore.push(prop) // Never consume a property more than once
+  
+      const value = obj[prop], descriptor = Object.getOwnPropertyDescriptor(obj, prop)
+      if (['created', 'mounted', 'destroyed'].includes(prop)) {
+        (ret as any)[prop] = value
+      } else if (descriptor && descriptor.get) {
+        ret.computed[prop] = {
+          get: descriptor.get,
+          set: descriptor.set
+        }
+      } else if (typeof value === 'function') {
+        ret.methods[prop] = value
+      } else if (value && value._isProp) {
+        ret.props[prop] = obj[prop]
+      } else if (!ignoreOthers) {
+        throw `VueClassComponent: Class prop ${prop} must be a method or a getter`
+      } else {
+        // It's a data prop. Silently ignore it (but remove it from the ignore list, so that it gets processed when we create the instance)
+        propsToIgnore.splice(propsToIgnore.length - 1, 1)
+      }
+    }  
+    
+    // Populate methods/computeds/props from the class's prototype
+    for (const prop of Object.getOwnPropertyNames(cl.prototype)) consumeProp(cl.prototype, prop)
+  
+    // Experimental: check static properties
+    for (const prop of Object.getOwnPropertyNames(cl)) consumeProp(cl, prop)
+  
+    // Experimental: check instance properties
+    const dummyInstance = new cl()   
+    for (const prop of Object.getOwnPropertyNames(dummyInstance)) consumeProp(dummyInstance, prop, true)
+  
+    // Done!
+    return ret
 }
