@@ -169,6 +169,12 @@ export default class ZipRunner {
         { path: '/', component: window.vues['Home'] },
         ${vuesPages.map(v =>`{ path: '/${v.componentKey}', component: window.vues['${v.componentKey}'] }`).join(", ")}
       ]
+      // Add special routes for components that declare one
+      Object.values(window.vues).forEach(comp => {
+        if (comp.route) { 
+          routes.push({ path: comp.route, component: comp })
+        }
+      })
       const router = new VueRouter({
         routes,
         base: '${this.site.basePath || "/"}',
