@@ -143,9 +143,10 @@ function vueClassComponent(opts, cl) {
         if (ignoreOthers === void 0) { ignoreOthers = false; }
         if (propsToIgnore.includes(prop))
             return;
-        var value = obj[prop], descriptor = Object.getOwnPropertyDescriptor(obj, prop);
+        var getValue = function () { return obj[prop]; }; // it's behind a function so that we don't call getters unnecessarily -- which will throw an error
+        var descriptor = Object.getOwnPropertyDescriptor(obj, prop);
         if (['created', 'mounted', 'destroyed'].includes(prop)) {
-            ret[prop] = value;
+            ret[prop] = obj[prop];
         }
         else if (descriptor && descriptor.get) {
             ret.computed[prop] = {
@@ -153,11 +154,11 @@ function vueClassComponent(opts, cl) {
                 set: descriptor.set
             };
         }
-        else if (typeof value === 'function') {
-            ret.methods[prop] = value;
+        else if (typeof getValue() === 'function') {
+            ret.methods[prop] = getValue();
         }
-        else if (value && value._isProp) {
-            ret.props[prop] = obj[prop];
+        else if (getValue() && getValue()._isProp) {
+            ret.props[prop] = getValue();
         }
         else if (!ignoreOthers) {
             throw "VueClassComponent: Class prop `" + prop + "` must be a method or a getter";

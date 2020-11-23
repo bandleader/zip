@@ -148,18 +148,19 @@ function vueClassComponent(opts: Record<string, any>, cl: any) {
     const consumeProp = (obj: Record<string, any>, prop: string, ignoreOthers = false) => {
       if (propsToIgnore.includes(prop)) return;
   
-      const value = obj[prop], descriptor = Object.getOwnPropertyDescriptor(obj, prop)
+      const getValue = () => obj[prop] // it's behind a function so that we don't call getters unnecessarily -- which will throw an error
+      const descriptor = Object.getOwnPropertyDescriptor(obj, prop)
       if (['created', 'mounted', 'destroyed'].includes(prop)) {
-        (ret as any)[prop] = value
+        (ret as any)[prop] = obj[prop]
       } else if (descriptor && descriptor.get) {
         ret.computed[prop] = {
           get: descriptor.get,
           set: descriptor.set
         }
-      } else if (typeof value === 'function') {
-        ret.methods[prop] = value
-      } else if (value && value._isProp) {
-        ret.props[prop] = obj[prop]
+      } else if (typeof getValue() === 'function') {
+        ret.methods[prop] = getValue()
+      } else if (getValue() && getValue()._isProp) {
+        ret.props[prop] = getValue()
       } else if (!ignoreOthers) {
         throw `VueClassComponent: Class prop \`${prop}\` must be a method or a getter`
       } else { // It's a data prop, from the "check instance properties" section below
