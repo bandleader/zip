@@ -155,6 +155,7 @@ export default class ZipRunner {
     const minusExt = (fileName: string) => fileName.substr(0, fileName.lastIndexOf("."))
     const vues = Object.keys(this.site.files).filter(x => x.endsWith(".vue")).map(localPath => ({ 
       path: localPath, 
+      autoRoute: localPath.startsWith('pages/') ? ('/'+minusExt(getFileName(localPath)).replace(/__/g, ':')) : null,
       componentKey: minusExt(getFileName(localPath)).replace(/[^a-zA-Z0-9א-ת]+/g, "-"), 
       contents: this.site.files[localPath].data 
     }))
@@ -163,11 +164,11 @@ export default class ZipRunner {
 
 
     // Set up frontend routes
-    const vuesPages = vues.filter(x => x.path.startsWith("pages/"))
+    const vuesPages = vues.filter(x => x.autoRoute)
     scripts.push(`
       const routes = [
         { path: '/', component: window.vues['Home'] || window.vues['home'] },
-        ${vuesPages.map(v =>`{ path: '/${v.path.substr(6).replace(/__/g,":")}', component: window.vues['${v.componentKey}'] }`).join(", ")}
+        ${vuesPages.map(v =>`{ path: '${v.autoRoute}', component: window.vues['${v.componentKey}'] }`).join(", ")}
       ]
       // Add special routes for components that declare one
       Object.values(window.vues).forEach(comp => {
