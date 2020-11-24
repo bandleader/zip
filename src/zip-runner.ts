@@ -155,7 +155,7 @@ export default class ZipRunner {
     const minusExt = (fileName: string) => fileName.substr(0, fileName.lastIndexOf("."))
     const vues = Object.keys(this.site.files).filter(x => x.endsWith(".vue")).map(localPath => ({ 
       path: localPath, 
-      autoRoute: localPath.startsWith('pages/') ? ('/'+minusExt(getFileName(localPath)).replace(/__/g, ':')) : null,
+      autoRoute: localPath.startsWith('pages/') ? ('/'+minusExt(localPath).replace(/__/g, ':')) : null,
       componentKey: minusExt(getFileName(localPath)).replace(/[^a-zA-Z0-9א-ת]+/g, "-"), 
       contents: this.site.files[localPath].data 
     }))
