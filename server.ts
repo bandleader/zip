@@ -1,4 +1,11 @@
-import * as express from 'express'
+import ZipRunner from './src/zip-runner'
+
+// Use zip-serve for testing, just replace with our copy of ZipRunner, instead of the dev version
+require('./cmds/common').setZipRunner(ZipRunner)
+require('./cmds/zip-serve')
+
+// Old code:
+/*import * as express from 'express'
 import * as bodyParser from "body-parser"
 import * as http from 'http'
 import * as socketIo from 'socket.io'
@@ -34,3 +41,5 @@ const listener = server.listen(process.env.PORT || 8005, () => {
 })
 
 // app.get("/", (req,resp) => resp.send("Test OK"))
+
+*/

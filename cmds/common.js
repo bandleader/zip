@@ -1,6 +1,6 @@
 const fs = require('fs')
 const process = require('process')
-const ZipRunner = require('../dist/index')
+let ZipRunner = require('../dist/index')
 
 function getPackageRoot() {
     let projRoot = process.cwd()
@@ -58,5 +58,6 @@ module.exports = {
     getZipContext,
     filesFromDir,
     getPackageRoot,
-    ZipRunner
+    ZipRunner,
+    setZipRunner(newRunner) { ZipRunner = newRunner }
 }
