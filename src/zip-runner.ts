@@ -153,12 +153,14 @@ export default class ZipRunner {
     // Add all Vue components
     const getFileName = (path: string) => path.split("/")[path.split("/").length-1]
     const minusExt = (fileName: string) => fileName.substr(0, fileName.lastIndexOf("."))
-    const vues = Object.keys(this.site.files).filter(x => x.endsWith(".vue")).map(localPath => ({ 
-      path: localPath, 
-      autoRoute: localPath.startsWith('pages/') ? ('/'+minusExt(localPath.substr(6)).replace(/__/g, ':')) : null,
-      componentKey: minusExt(getFileName(localPath)).replace(/[^a-zA-Z0-9א-ת]+/g, "-"), 
-      contents: this.site.files[localPath].data 
-    }))
+    const vues = Object.keys(this.site.files).filter(x => x.endsWith(".vue")).map(path => { 
+      const autoRoute = path.startsWith('pages/') ? ('/'+minusExt(path.substr(6)).replace(/__/g, ':')) : null
+      return {
+        path, autoRoute,
+        componentKey: minusExt(autoRoute ? path : getFileName(path)).replace(/[^a-zA-Z0-9א-ת]+/g, "-"), 
+        contents: this.site.files[path].data 
+      }
+    })
     scripts.push(...vues.map(v => Bundler.convVueModuleToInitGlobalCode(v.componentKey, Bundler.convVueSfcToJsModule(v.contents, Bundler.vueClassTransformerScript()))))
 
 

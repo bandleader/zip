@@ -265,12 +265,14 @@ var ZipRunner = /** @class */ (function () {
         // Add all Vue components
         var getFileName = function (path) { return path.split("/")[path.split("/").length - 1]; };
         var minusExt = function (fileName) { return fileName.substr(0, fileName.lastIndexOf(".")); };
-        var vues = Object.keys(this.site.files).filter(function (x) { return x.endsWith(".vue"); }).map(function (localPath) { return ({
-            path: localPath,
-            autoRoute: localPath.startsWith('pages/') ? ('/' + minusExt(localPath.substr(6)).replace(/__/g, ':')) : null,
-            componentKey: minusExt(getFileName(localPath)).replace(/[^a-zA-Z0-9א-ת]+/g, "-"),
-            contents: _this.site.files[localPath].data
-        }); });
+        var vues = Object.keys(this.site.files).filter(function (x) { return x.endsWith(".vue"); }).map(function (path) {
+            var autoRoute = path.startsWith('pages/') ? ('/' + minusExt(path.substr(6)).replace(/__/g, ':')) : null;
+            return {
+                path: path, autoRoute: autoRoute,
+                componentKey: minusExt(autoRoute ? path : getFileName(path)).replace(/[^a-zA-Z0-9א-ת]+/g, "-"),
+                contents: _this.site.files[path].data
+            };
+        });
         scripts.push.apply(scripts, vues.map(function (v) { return Bundler.convVueModuleToInitGlobalCode(v.componentKey, Bundler.convVueSfcToJsModule(v.contents, Bundler.vueClassTransformerScript())); }));
         // Set up frontend routes
         var vuesPages = vues.filter(function (x) { return x.autoRoute; });
