@@ -166,7 +166,7 @@ export default class ZipRunner {
     const vuesPages = vues.filter(x => x.path.startsWith("pages/"))
     scripts.push(`
       const routes = [
-        { path: '/', component: window.vues['Home'] },
+        { path: '/', component: window.vues['Home'] || window.vues['home'] },
         ${vuesPages.map(v =>`{ path: '/${v.componentKey.replace(/__/g,":")}', component: window.vues['${v.componentKey}'] }`).join(", ")}
       ]
       // Add special routes for components that declare one
