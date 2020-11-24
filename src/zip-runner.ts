@@ -167,7 +167,7 @@ export default class ZipRunner {
     scripts.push(`
       const routes = [
         { path: '/', component: window.vues['Home'] || window.vues['home'] },
-        ${vuesPages.map(v =>`{ path: '/${v.componentKey.replace(/__/g,":")}', component: window.vues['${v.componentKey}'] }`).join(", ")}
+        ${vuesPages.map(v =>`{ path: '/${v.path.substr(6).replace(/__/g,":")}', component: window.vues['${v.componentKey}'] }`).join(", ")}
       ]
       // Add special routes for components that declare one
       Object.values(window.vues).forEach(comp => {
