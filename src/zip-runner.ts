@@ -169,7 +169,7 @@ export default class ZipRunner {
     const vuesPages = vues.filter(x => x.autoRoute)
     scripts.push(`
       const routes = [
-        { path: '/', component: window.vues['Home'] || window.vues['home'] },
+        { path: '/', component: window.vues['pages-Home'] || window.vues['pages-home'] },
         ${vuesPages.map(v =>`{ path: '${v.autoRoute}', component: window.vues['${v.componentKey}'] }`).join(", ")}
       ]
       // Add special routes for components that declare one
