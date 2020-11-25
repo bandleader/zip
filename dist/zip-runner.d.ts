@@ -18,7 +18,7 @@ export default class ZipRunner {
     getFile(path: string): string;
     getFrontendIndex(): string;
     startBackend(): void;
-    handleRequest(path: string, req: any, resp: any): void;
+    handleRequest(path: string, req: any, resp: any): Promise<any>;
     getFrontendScript(): string;
 }
 export {};

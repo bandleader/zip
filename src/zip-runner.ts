@@ -93,7 +93,7 @@ export default class ZipRunner {
           if (method === "graph") {
             const queryObj = args[0]
             let resolver = this.backend[method]
-            result = GraphQueryRunner.resolve(resolver, queryObj as NewGraphQuery)
+            result = GraphQueryRunner.resolve(resolver, queryObj)
           } else {
             result = this.backend[method](...args)
           }          
