@@ -8,6 +8,7 @@
 //                             
 
 import Bundler from './bundler'
+import GraphQueryRunner from './graph'
 
 type Dict<T> = Record<string, T>
 type ZipSite = { 
@@ -68,19 +69,36 @@ export default class ZipRunner {
  
   handleRequest(path: string, req: any, resp: any) {
     // console.log(path)
+    const sendErr = (err: any) => resp.send({ err: String(err) })
+    /*const tryWith = (msgPrefix: string, fn: Function) => {
+      try {
+        const result = fn()
+        if (result.catch) result.catch(sendErr)
+        return result
+      } catch (ex) {
+        sendErr(`${msgPrefix}${ex}`)
+      }
+    }*/
+
     if (path === "/favicon.ico") {
       resp.send("404 Not Found")
     } else if (path.startsWith("/api/")) {
       const method = path.split("/")[2]
-      const sendErr = (err: any) => resp.send({ err: String(err) })
       if (!this.backend[method]) {
         sendErr(`Backend method '${method}' not found`)
       } else {
         try {
           const args = JSON.parse(req.query.args || '[""]')
-          const result = this.backend[method](...args)
+          let result = null 
+          if (method === "graph") {
+            const queryObj = args[0]
+            let resolver = this.backend[method]
+            result = GraphQueryRunner.resolve(resolver, queryObj as NewGraphQuery)
+          } else {
+            result = this.backend[method](...args)
+          }          
           const resultPromise: Promise<any> = result['then'] ? result : Promise.resolve(result)
-          resultPromise.then(
+          return resultPromise.then(
             result => resp.send({ result }),
             sendErr
           )          
