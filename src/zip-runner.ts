@@ -95,59 +95,13 @@ export default class ZipRunner {
 
   getFrontendScript() {
     const scripts: string[] = []
+    scripts.push(this.getFile("zip-client.js"))
+
     // Create RPC for backend methods
-    const methods = Object.keys(this.backend)
-    scripts.push(`
-      function AsyncLoader(factory, _default) {
-        var fired = false
-        const ret = function() { 
-          if (!fired) fire()
-          return ret.value
-        }        
-        Vue.util.defineReactive(ret, 'value', _default || null)
-        Vue.util.defineReactive(ret, 'error', null)
-        Vue.util.defineReactive(ret, 'loading', false)
-        Vue.util.defineReactive(ret, 'ready', false)
-        const fire = () => {
-          fired = true
-          ret.loading = true
-          const result = (typeof factory === 'function') ? factory() : factory
-          const resultPromise = result.then ? result : Promise.resolve(result)
-          resultPromise.then(result => {
-            ret.value = result
-            ret.loading = false
-            ret.ready = true
-          }, err => {
-            ret.error = err
-            ret.loading = false
-          })
-        }
-        fire()
-        return ret
-      }
-
-      /*function AsyncLoader(factory, _default) {
-        const ret = AsyncLoaderLazy(factory, _default)
-        ret()
-        return ret
-      }*/
-
-      function _callZipBackend(method, ...args) {
-        const result = fetch("/api/" + method + "?args=" + encodeURIComponent(JSON.stringify(args)), {
-          method: "POST"
-        })
-        const jsonResult = result.then(x => x.json())
-        return jsonResult.then(json => {
-          if (json.err) throw "Server returned error: " + json.err
-          return json.result
-        })
-      }
-
-      const Backend = {}
-    `)
+    const methods = Object.keys(this.backend)    
     for (const key of Object.keys(this.backend)) {
-      scripts.push(`Backend['${key}'] = (...args) => _callZipBackend('${key}', ...args)`)
-      scripts.push(`Backend['${key}'].loader = (_default, ...args) => AsyncLoader(() => _callZipBackend('${key}', ...args), _default)`)
+      scripts.push(`Zip.Backend['${key}'] = (...args) => Zip.Backend._call('${key}', ...args)`)
+      scripts.push(`Zip.Backend['${key}'].loader = (_default, ...args) => Zip.Utils.asyncLoader(() => Zip.Backend._call('${key}', ...args), _default)`)
     }
 
     // Add all Vue components
