@@ -415,6 +415,9 @@ var ZipRunner = /** @class */ (function () {
         if (path === "/favicon.ico") {
             resp.send("404 Not Found");
         }
+        else if (path == "/_zipver") {
+            resp.send(require('../package.json').version);
+        }
         else if (path.startsWith("/api/")) {
             var method = path.split("/")[2];
             if (!this.backend[method]) {
