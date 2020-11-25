@@ -26,13 +26,14 @@ export default class GraphQueryRunner {
     // }
     if (typeof obj !== 'object' || obj === null) throw `Can't get field '${field}' on ${pathForDiag} because it is not an object but ` + typeof obj
     // NAH if (Array.isArray(obj)) throw `Can't get field '${field}' on ${pathForDiag} because it is an array` // Should never happen
-    const result = (obj as any)[field]
+    let result = (obj as any)[field]
     if (result === undefined) throw `Field '${field}' on ${pathForDiag} does not exist`
+    if (typeof result === 'function') result = result.bind(obj) // So that the method can be called with the right `this`
     return result
   }
   static resolve(on: any|Function|Promise<any>, queryOrTrue: GraphQuery, pathForDiag = "🌳"): Promise<any> {
     // Same as `resolve_inner`, but allows for optionally subquerying the result.
-        const getSqKeys = (obj: object) => Object.keys(obj).filter(x => x !== "_args")
+    const getSqKeys = (obj: object) => Object.keys(obj).filter(x => x !== "_args")
     try {
       let result = GraphQueryRunner.resolve_inner(on, (queryOrTrue as any)._args, pathForDiag)
       // PERHAPS: if it's `true` but the result is complex, disallow. Or at least clean, send known keys, force implementing a toJson() method, etc.
@@ -42,16 +43,30 @@ export default class GraphQueryRunner {
       const handleObject = async (queryable: Record<string, any>) => {
         if (typeof queryable !== 'object' || queryable === null) throw `${pathForDiag} is a '${typeof queryable}', not an object, and so cannot accept subqueries`
         // NAH if (Array.isArray(queryable)) throw `${pathForDiag} is an array, so can only be subqueried with key '[]'`
-        const ret: Record<string, any> = {}
+        let ret: Record<string, any> = {}
         for (const sqKey of getSqKeys(queryOrTrue)) {
           const sqQueryOrTrue = queryOrTrue[sqKey]
-          if (sqKey === "[]") {
+          const [sqFieldKey, sqAlias] = sqKey.includes("=>") ? sqKey.split("=>").map(x => x.trim()) : [sqKey, sqKey]
+          const assignToOurObject = (x: any) => {
+            if (sqAlias) return ret[sqAlias] = x
+            // Otherwise, the 'unnest=>' operator was requested, so mix the target object into ours
+            if (typeof x !== 'object' || x === null) throw `Can't use the 'unnest=>' operator on ${pathForDiag}.${sqKey} because it isn't an object`
+            if (!Array.isArray(x)) return Object.assign(ret, x)
+            // What to do if it's an array? I think replace us with it. Though that will lose any keys we already have! But that's the user's problem.
+            ret = x
+            // ret = Object.assign(x, ret)
+            // x.push({...ret}); ret = x//; ret.push(Object.assign(x, ret)
+          }
+          if (!sqFieldKey && sqAlias) {
+            // He wants to created a nested context -- the '=>nest' operator. i.e. run his subqueries on us
+            assignToOurObject(await GraphQueryRunner.resolve(/* same resolver*/queryable, sqQueryOrTrue as any, `${pathForDiag}.${sqKey}`))
+          } else if (sqFieldKey === "[]") {
             // He wants to run subqueries on array contents
-            if (!Array.isArray(queryable)) throw `Can't run '[]' on non-array: ${pathForDiag}`
-            ret[sqKey] = await Promise.all(queryable.map((arrayItem, ind) => GraphQueryRunner.resolve(arrayItem, sqQueryOrTrue as any, `${pathForDiag}[${ind}]`)))
+            if (!Array.isArray(queryable)) throw `Can't use '[]' on non-array: ${pathForDiag}`
+            assignToOurObject(await Promise.all(queryable.map((arrayItem, ind) => GraphQueryRunner.resolve(arrayItem, sqQueryOrTrue as any, `${pathForDiag}[${ind}]`))))
           } else {
-            const sqValue = GraphQueryRunner.followField(queryable, sqKey, pathForDiag)
-            ret[sqKey] = await GraphQueryRunner.resolve(sqValue, sqQueryOrTrue as any, `${pathForDiag}.${sqKey}`)
+            const sqValue = GraphQueryRunner.followField(queryable, sqFieldKey, pathForDiag)
+            assignToOurObject(await GraphQueryRunner.resolve(sqValue, sqQueryOrTrue as any, `${pathForDiag}.${sqKey}`))
           }
         }
         return ret

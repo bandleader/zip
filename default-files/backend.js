@@ -12,6 +12,7 @@ export default {
             setTimeout(() => res(ms + " ms have passed!"), ms)
         }),
         list: ["One", "Two", "Three"],
+        numbers: (till = 100) => Array.from(Array(till)).map((_,i) => 1 + i),
         john: { 
             firstName: "John", 
             lastName: "Smith" 
