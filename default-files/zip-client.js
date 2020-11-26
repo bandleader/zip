@@ -101,3 +101,23 @@ const _zipGraphQuery = function() {
     }, 1)
     return rootQuery
 }
+
+Vue.component('async-value', {
+  props: ['promise'],
+  computed: {
+    info() {
+      const ret = Vue.observable({
+        resolved: false,
+        error: null,
+        value: null
+      })
+      this.promise.then(x => {ret.resolved = true; ret.value = x}, err => ret.error = err)
+      return ret
+    }
+  },
+  template: `
+    <div v-if="info.resolved"><slot v-bind="{value: info.value}" /></div>
+    <div v-else-if="info.error" class="text-danger"><i class="fa fa-exclamation-triangle" /> {{info.error}}</div>
+    <div v-else class="text-center"><div class="spinner-border text-primary" /></div>
+  `
+})
