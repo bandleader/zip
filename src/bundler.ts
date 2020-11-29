@@ -89,7 +89,7 @@ export default class Bundler {
         const btoa = (str: string) => new Buffer(str).toString('base64')
         return `
             let exp = ${scriptIife};
-            exp.template = atob("${btoa(template)}")
+            exp.template = ${JSON.stringify(template)}
             const addTag = (where, tagName, attrs) => {           
                 const el = document.createElement(tagName)
                 for (const k of Object.keys(attrs)) el[k] = attrs[k]
