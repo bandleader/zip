@@ -40,7 +40,6 @@ export class VueSfcs {
         if (classTransformer) scriptIife = `(${classTransformer})(${scriptIife})`
         const template = getTag("template", vueSfcCode)
         const css = getTag("style", vueSfcCode)
-        const btoa = (str: string) => new Buffer(str).toString('base64')
         return `
             let exp = ${scriptIife};
             exp.template = ${JSON.stringify(template)}
@@ -54,7 +53,7 @@ export class VueSfcs {
             // TODO remove too
             const oldCreated = exp.created
             exp.created = function () {
-                if (!alreadyAddedCss) addCss(atob("${btoa(css)}"))
+                if (!alreadyAddedCss) addCss(${JSON.stringify(css)})
                 alreadyAddedCss = true
                 if (oldCreated) oldCreated.call(this)
             }
