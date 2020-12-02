@@ -62,6 +62,14 @@ function __generator(thisArg, body) {
     }
 }
 
+function __spreadArrays() {
+    for (var s = 0, i = 0, il = arguments.length; i < il; i++) s += arguments[i].length;
+    for (var r = Array(s), k = 0, i = 0; i < il; i++)
+        for (var a = arguments[i], j = 0, jl = a.length; j < jl; j++, k++)
+            r[k] = a[j];
+    return r;
+}
+
 var Bundler = /** @class */ (function () {
     function Bundler() {
     }
@@ -135,7 +143,7 @@ var Bundler = /** @class */ (function () {
         var template = getTag("template", vueSfcCode);
         var css = getTag("style", vueSfcCode);
         var btoa = function (str) { return new Buffer(str).toString('base64'); };
-        return "\n            let exp = " + scriptIife + ";\n            exp.template = atob(\"" + btoa(template) + "\")\n            const addTag = (where, tagName, attrs) => {           \n                const el = document.createElement(tagName)\n                for (const k of Object.keys(attrs)) el[k] = attrs[k]\n                where.appendChild(el)\n            }\n            const addCss = css => addTag(document.head, \"style\", {type: 'text/css', innerHTML: css})                  \n            let alreadyAddedCss = false\n            // TODO remove too\n            const oldCreated = exp.created\n            exp.created = function () {\n                if (!alreadyAddedCss) addCss(atob(\"" + btoa(css) + "\"))\n                alreadyAddedCss = true\n                if (oldCreated) oldCreated.call(this)\n            }\n            export default exp\n        ";
+        return "\n            let exp = " + scriptIife + ";\n            exp.template = " + JSON.stringify(template) + "\n            const addTag = (where, tagName, attrs) => {           \n                const el = document.createElement(tagName)\n                for (const k of Object.keys(attrs)) el[k] = attrs[k]\n                where.appendChild(el)\n            }\n            const addCss = css => addTag(document.head, \"style\", {type: 'text/css', innerHTML: css})                  \n            let alreadyAddedCss = false\n            // TODO remove too\n            const oldCreated = exp.created\n            exp.created = function () {\n                if (!alreadyAddedCss) addCss(atob(\"" + btoa(css) + "\"))\n                alreadyAddedCss = true\n                if (oldCreated) oldCreated.call(this)\n            }\n            export default exp\n        ";
     };
     return Bundler;
 }());
@@ -366,6 +374,11 @@ var GraphQueryRunner = /** @class */ (function () {
 }());
 
 //   ________  ___  ________   
+function evalEx(exprCode, customScope) {
+    if (customScope === void 0) { customScope = {}; }
+    // Evaluates in global scope, with optional special variables in scope
+    return Function.apply(void 0, __spreadArrays(Object.keys(customScope), ["return (" + exprCode + ")"])).apply(void 0, Object.values(customScope));
+}
 var ZipRunner = /** @class */ (function () {
     function ZipRunner(site) {
         this.site = site;
@@ -390,7 +403,7 @@ var ZipRunner = /** @class */ (function () {
     ZipRunner.prototype.startBackend = function () {
         // TODO use clearableScheduler
         var backendModuleText = this.getFile("backend.js");
-        this.backend = eval(Bundler.convJsModuleToFunction(backendModuleText, true));
+        this.backend = evalEx(Bundler.convJsModuleToFunction(backendModuleText, true));
         if (typeof this.backend === 'function')
             this.backend = this.backend();
         if (Object.keys(this.backend).filter(function (x) { return x !== 'greeting'; }).length) {

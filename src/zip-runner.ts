@@ -32,6 +32,11 @@ function clearableScheduler() {
   }
 }
 
+function evalEx(exprCode: string, customScope = {}) {
+  // Evaluates in global scope, with optional special variables in scope
+  return Function(...Object.keys(customScope), `return (${exprCode})`)(...Object.values(customScope))
+}
+
 export default class ZipRunner {
   backend: any
 
@@ -60,7 +65,7 @@ export default class ZipRunner {
   startBackend() {
     // TODO use clearableScheduler
     const backendModuleText = this.getFile("backend.js")
-    this.backend = eval(Bundler.convJsModuleToFunction(backendModuleText, true))
+    this.backend = evalEx(Bundler.convJsModuleToFunction(backendModuleText, true))
     if (typeof this.backend === 'function') this.backend = this.backend()
     if (Object.keys(this.backend).filter(x => x !== 'greeting').length) {
       console.log("Loaded backend with methods:", Object.keys(this.backend).join(", "))
