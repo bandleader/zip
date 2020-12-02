@@ -70,63 +70,18 @@ function __spreadArrays() {
     return r;
 }
 
-var Bundler = /** @class */ (function () {
-    function Bundler() {
+var VueSfcs = /** @class */ (function () {
+    function VueSfcs() {
     }
-    Bundler.convJsModuleToFunction = function (jsCode, execute) {
-        /* TODO: allow named exports too
-            (function(module) { module = module || {}; module.exports = {}; CODE_HERE; return module.exports })
-        */
-        /* TODO allow exporting functions, classes, const/vars
-            export const/var/let foo = 5                =>      const/var/let foo = module.exports.foo = 5
-            export function foo() { }                   =>      const foo = module.exports.foo = function foo() { }
-            export class foo { }                        =>      const foo = module.exports.foo = class foo() { }
-            export default class/function foo { }       =>      const foo = module.exports._default = class/function foo() { }
-            export default 5                            =>      module.exports._default = 5
-                                                Or to simplify: const _default = module.exports._default = 5
-
-            parseExport(str, pos): {name: string|"_default", declaration: "const"|"var"|"let"|"function"|"class"|null, lengthIncludingName: number} {
-              // Eat export
-              // Optionally eat default
-              // Optionally eat declaration: const/let/var/function/async function/class
-              // If there was a declaration, eat the name (identifier)
-            }
-            exportToDeclAndAssignment(export) {
-                const ourDecl = (export.declaration==="var" || export.declaration==="let") ? export.declaration : "const"
-                return `${ourDecl} ${export.name} = module.exports.${export.name} = `
-            }
-        */
-        if (execute === void 0) { execute = true; }
-        jsCode = jsCode.replace("export default", "_defaultExport = ");
-        jsCode = jsCode.split("\n").map(function (x) { return "  " + x; }).join("\n"); // Indent nicely
-        jsCode = "(function() {\n  let _defaultExport = undefined\n\n" + jsCode + "\n\n\n  return _defaultExport\n})" + (execute ? "()\n" : "\n");
-        return jsCode;
+    VueSfcs.convVueModuleToInitGlobalCode = function (componentKey, jsModuleCode) {
+        return "\n            window.vues = window.vues || {}\n            window.vues['" + componentKey + "'] = " + SimpleBundler.moduleCodeToIife(jsModuleCode) + "\n            Vue.component(\"" + componentKey + "\", window.vues['" + componentKey + "']);\n        ";
     };
-    Bundler.getLoaderCode = function (modules) {
-        var moduleCode = Object.keys(modules).map(function (k) { return "'" + k + "': " + Bundler.convJsModuleToFunction(modules[k], false); }).join(", ");
-        return "\n            const __makeLoader = " + String(Bundler.getLoader) + "\n            const require = __makeLoader({" + moduleCode + "})\n        ";
-    };
-    Bundler.getLoader = function (modules) {
-        var loadedModules = {};
-        // TODO: keep a stack to detect infinite recursion
-        // TODO: trap errors during module init and say so
-        return function (moduleName) {
-            if (!modules[moduleName])
-                throw "Module '" + moduleName + "' not found";
-            if (!loadedModules[moduleName])
-                loadedModules[moduleName] = modules[moduleName]();
-            return loadedModules[moduleName];
-        };
-    };
-    Bundler.convVueModuleToInitGlobalCode = function (componentKey, jsModuleCode) {
-        return "\n            window.vues = window.vues || {}\n            window.vues['" + componentKey + "'] = " + Bundler.convJsModuleToFunction(jsModuleCode) + "\n            Vue.component(\"" + componentKey + "\", window.vues['" + componentKey + "']);\n        ";
-    };
-    Bundler.vueClassTransformerScript = function () {
+    VueSfcs.vueClassTransformerScript = function () {
         // We also include the __assign function replacement for Object.assign, since Rollup is transpiling {...foo} to that.
         // In the future we should just include a Zip client JS file which should already be transpiled
         return "\n            (function() {\n                var __assign = function() { \n                    __assign = Object.assign || function __assign(t) {\n                        for (var s, i = 1, n = arguments.length; i < n; i++) {\n                            s = arguments[i];\n                            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p)) t[p] = s[p];\n                        }\n                        return t;\n                    };\n                    return __assign.apply(this, arguments);\n                }\n                return " + vueClassComponent + "\n            })()\n        ";
     };
-    Bundler.convVueSfcToJsModule = function (vueSfcCode, classTransformer) {
+    VueSfcs.convVueSfcToJsModule = function (vueSfcCode, classTransformer) {
         var getTag = function (tag, text) {
             var start = text.indexOf('>', text.indexOf("<" + tag)) + 1;
             var end = text.lastIndexOf("</" + tag + ">");
@@ -137,7 +92,7 @@ var Bundler = /** @class */ (function () {
             return text.substring(start, end);
         };
         var scriptModule = getTag("script", vueSfcCode) || "export default {}";
-        var scriptIife = Bundler.convJsModuleToFunction(scriptModule);
+        var scriptIife = SimpleBundler.moduleCodeToIife(scriptModule);
         if (classTransformer)
             scriptIife = "(" + classTransformer + ")(" + scriptIife + ")";
         var template = getTag("template", vueSfcCode);
@@ -145,7 +100,7 @@ var Bundler = /** @class */ (function () {
         var btoa = function (str) { return new Buffer(str).toString('base64'); };
         return "\n            let exp = " + scriptIife + ";\n            exp.template = " + JSON.stringify(template) + "\n            const addTag = (where, tagName, attrs) => {           \n                const el = document.createElement(tagName)\n                for (const k of Object.keys(attrs)) el[k] = attrs[k]\n                where.appendChild(el)\n            }\n            const addCss = css => addTag(document.head, \"style\", {type: 'text/css', innerHTML: css})                  \n            let alreadyAddedCss = false\n            // TODO remove too\n            const oldCreated = exp.created\n            exp.created = function () {\n                if (!alreadyAddedCss) addCss(atob(\"" + btoa(css) + "\"))\n                alreadyAddedCss = true\n                if (oldCreated) oldCreated.call(this)\n            }\n            export default exp\n        ";
     };
-    return Bundler;
+    return VueSfcs;
 }());
 function vueClassComponent(opts, cl) {
     if (arguments.length <= 1) {
@@ -233,6 +188,128 @@ function vueClassComponent(opts, cl) {
     }
     // Done!
     return ret;
+}
+var SimpleBundler = /** @class */ (function () {
+    function SimpleBundler() {
+        var _this = this;
+        this.modulesToBundle = [];
+        this.pathResolver = function (pathString, fromModule) {
+            var ret = undefined;
+            var attempt = function (what) { if (!ret)
+                ret = what; };
+            var normalizePath = function (path) { return path.split("/").reduce(function (a, c) {
+                return (c === ".") ? a :
+                    (c === ".." && a.length) ? a.slice(0, a.length - 1) :
+                        (c === "..") ? (function () { throw "Invalid path: '" + path + "'"; })() : __spreadArrays(a, [c]);
+            }, []).join("/"); };
+            var attemptPath = function (path) { return attempt(_this.modulesToBundle.find(function (x) { return x.key === normalizePath(path); })); };
+            var attemptPathWithExts = function (path) { [path, path + ".js", path + "/index.js"].forEach(attemptPath); };
+            if (pathString.startsWith("./") || pathString.startsWith("../")) {
+                var getDir = function (path) { return path.split("/").slice(0, path.split("/").length - 1).join("/"); };
+                var moduleDir = getDir(fromModule.key || "");
+                attemptPathWithExts(moduleDir + "/" + pathString);
+            }
+            else if (pathString.startsWith("/")) {
+                attemptPathWithExts(pathString);
+            }
+            else {
+                throw "Module '" + fromModule.key + "': Unsupported require path scheme '" + pathString + "'";
+            }
+            return ret;
+        };
+    }
+    SimpleBundler.prototype.bundle = function () {
+        var _this = this;
+        var modulesToCompile = this.modulesToBundle.slice();
+        var compiledModules = [];
+        var _loop_1 = function (m) {
+            var factoryFuncString = SimpleBundler.moduleCodeToFactoryFunc(m.codeString, function (path) {
+                var resolved = _this.pathResolver(path, m);
+                if (!resolved)
+                    throw "'" + m.key + "': Could not resolve module path '" + path + "'";
+                if (!modulesToCompile.includes(resolved))
+                    modulesToCompile.push(resolved); // Add the 'require'd module to our list
+                return "require('" + resolved.key + "')";
+            });
+            compiledModules.push(__assign(__assign({}, m), { factoryFuncString: factoryFuncString }));
+        };
+        // 'Compile' each module to a factory function, i.e. a function that takes args (module, exports, require) and mutates module.exports
+        // The callback we pass to moduleCodeToFactoryFunc will also resolve calls to require() using our class instances's `pathResolver` function, and will add any 'require'd modules to our list of modules to add to our bundle.
+        for (var _i = 0, modulesToCompile_1 = modulesToCompile; _i < modulesToCompile_1.length; _i++) {
+            var m = modulesToCompile_1[_i];
+            _loop_1(m);
+        }
+        // Return loader code
+        return "\n      ;(function(){\n        const factories = [\n          " + compiledModules.map(function (m) { return "{\n            key: " + JSON.stringify(m.key) + ",\n            factory: " + m.factoryFuncString + ",\n            main: " + !!m.main + "\n          }"; }).join(",") + "\n        ]\n        const require = " + SimpleBundler._moduleLoader + "(factories)\n        factories.filter(x => x.main).forEach(x => require(x.key)) // Run any 'main' modules\n        return require\n      })()\n    ";
+    };
+    SimpleBundler.moduleCodeToFactoryFunc = function (jsCode, importCallback) {
+        // Optionally resolve calls to `require()`
+        if (importCallback)
+            jsCode = jsCode.replace(/require\([\'\"](.+?)[\'\"]\)/g, function (_, path) { return importCallback(path); });
+        // Convert ES6 export syntax. For now we only support `export default <expr>`
+        jsCode = jsCode.replace("export default", "module.exports.default = ");
+        /* TODO: allow named exports too
+            (function(module) { module = module || {}; module.exports = {}; CODE_HERE; return module.exports })
+        */
+        /* TODO allow exporting functions, classes, const/vars
+            export const/var/let foo = 5                =>      const/var/let foo = module.exports.foo = 5
+            export function foo() { }                   =>      const foo = module.exports.foo = function foo() { }
+            export class foo { }                        =>      const foo = module.exports.foo = class foo() { }
+            export default class/function foo { }       =>      const foo = module.exports._default = class/function foo() { }
+            export default 5                            =>      module.exports._default = 5
+                                                Or to simplify: const _default = module.exports._default = 5
+    
+            parseExport(str, pos): {name: string|"_default", declaration: "const"|"var"|"let"|"function"|"class"|null, lengthIncludingName: number} {
+              // Eat export
+              // Optionally eat default
+              // Optionally eat declaration: const/let/var/function/async function/class
+              // If there was a declaration, eat the name (identifier)
+            }
+            exportToDeclAndAssignment(export) {
+                const ourDecl = (export.declaration==="var" || export.declaration==="let") ? export.declaration : "const"
+                return `${ourDecl} ${export.name} = module.exports.${export.name} = `
+            }
+        */
+        // Wrap in a factory function
+        // jsCode = jsCode.split("\n").map(x => `  ${x}`).join("\n") // Optionally: Indent nicely
+        jsCode = "function(module, exports, require) {\n" + jsCode + "\n}";
+        return jsCode;
+    };
+    SimpleBundler.moduleCodeToIife = function (jsCode, useDefaultExportIfAny) {
+        if (useDefaultExportIfAny === void 0) { useDefaultExportIfAny = true; }
+        return "(function() {\n      const tempModule = { exports: {} }\n      const tempRequire = function() { throw \"Error: require() cannot be called when using 'moduleCodeToIife'\" }\n      const tempFactory = " + SimpleBundler.moduleCodeToFactoryFunc(jsCode) + "\n      tempFactory(tempModule, tempModule.exports, tempRequire)\n      return " + (useDefaultExportIfAny ? 'tempModule.exports.default || ' : '') + "tempModule.exports\n    })()";
+    };
+    SimpleBundler._moduleLoader = function moduleLoader(factories) {
+        var modules = {};
+        factories.forEach(function (f) { modules[f.key] = { key: f.key, factory: f.factory, exports: {}, loading: false, loaded: false }; });
+        var require = function (key) {
+            if (!modules[key])
+                throw "Module not found in bundle: " + key;
+            var m = modules[key];
+            if (m.loading)
+                throw "Circular dependency found when loading module: " + key;
+            if (!m.loaded) {
+                m.loading = true;
+                try {
+                    m.factory(m, m.exports, require);
+                    m.loading = false;
+                    m.loaded = true;
+                }
+                catch (ex) {
+                    m.loading = false;
+                    throw new Error("Error while running module '" + key + "': " + ex);
+                }
+            }
+            return m.exports;
+        };
+        return require;
+    };
+    return SimpleBundler;
+}());
+function evalEx(exprCode, customScope) {
+    if (customScope === void 0) { customScope = {}; }
+    // Evaluates in global scope, with optional special variables in scope
+    return Function.apply(void 0, __spreadArrays(Object.keys(customScope), ["return (" + exprCode + ")"])).apply(void 0, Object.values(customScope));
 }
 
 // const a: NewGraphQuery = {
@@ -374,11 +451,6 @@ var GraphQueryRunner = /** @class */ (function () {
 }());
 
 //   ________  ___  ________   
-function evalEx(exprCode, customScope) {
-    if (customScope === void 0) { customScope = {}; }
-    // Evaluates in global scope, with optional special variables in scope
-    return Function.apply(void 0, __spreadArrays(Object.keys(customScope), ["return (" + exprCode + ")"])).apply(void 0, Object.values(customScope));
-}
 var ZipRunner = /** @class */ (function () {
     function ZipRunner(site) {
         this.site = site;
@@ -403,7 +475,7 @@ var ZipRunner = /** @class */ (function () {
     ZipRunner.prototype.startBackend = function () {
         // TODO use clearableScheduler
         var backendModuleText = this.getFile("backend.js");
-        this.backend = evalEx(Bundler.convJsModuleToFunction(backendModuleText, true));
+        this.backend = evalEx(SimpleBundler.moduleCodeToIife(backendModuleText));
         if (typeof this.backend === 'function')
             this.backend = this.backend();
         if (Object.keys(this.backend).filter(function (x) { return x !== 'greeting'; }).length) {
@@ -480,7 +552,7 @@ var ZipRunner = /** @class */ (function () {
                 contents: _this.site.files[path].data
             };
         });
-        scripts.push.apply(scripts, vues.map(function (v) { return Bundler.convVueModuleToInitGlobalCode(v.componentKey, Bundler.convVueSfcToJsModule(v.contents, Bundler.vueClassTransformerScript())); }));
+        scripts.push.apply(scripts, vues.map(function (v) { return VueSfcs.convVueModuleToInitGlobalCode(v.componentKey, VueSfcs.convVueSfcToJsModule(v.contents, VueSfcs.vueClassTransformerScript())); }));
         // Set up frontend routes
         var vuesPages = vues.filter(function (x) { return x.autoRoute; });
         scripts.push("\n      const routes = [\n        { path: '/', component: window.vues['pages-Home'] || window.vues['pages-home'] },\n        " + vuesPages.map(function (v) { return "{ path: '" + v.autoRoute + "', component: window.vues['" + v.componentKey + "'] }"; }).join(", ") + "\n      ]\n      // Add special routes for components that declare one\n      Object.values(window.vues).forEach(comp => {\n        if (comp.route) { \n          routes.push({ path: comp.route, component: comp })\n        }\n      })\n      const router = new VueRouter({\n        routes,\n        base: '" + (this.site.basePath || "/") + "',\n        mode: '" + (this.site.router.mode || 'history') + "'\n      })");

@@ -1,56 +1,10 @@
 type Dict<T> = Record<string, T>
 
-export default class Bundler {
-    static convJsModuleToFunction(jsCode: string, execute = true) {
-        /* TODO: allow named exports too
-            (function(module) { module = module || {}; module.exports = {}; CODE_HERE; return module.exports })
-        */
-        /* TODO allow exporting functions, classes, const/vars
-            export const/var/let foo = 5                =>      const/var/let foo = module.exports.foo = 5
-            export function foo() { }                   =>      const foo = module.exports.foo = function foo() { }
-            export class foo { }                        =>      const foo = module.exports.foo = class foo() { }
-            export default class/function foo { }       =>      const foo = module.exports._default = class/function foo() { }
-            export default 5                            =>      module.exports._default = 5
-                                                Or to simplify: const _default = module.exports._default = 5
-
-            parseExport(str, pos): {name: string|"_default", declaration: "const"|"var"|"let"|"function"|"class"|null, lengthIncludingName: number} {
-              // Eat export
-              // Optionally eat default
-              // Optionally eat declaration: const/let/var/function/async function/class
-              // If there was a declaration, eat the name (identifier)
-            }
-            exportToDeclAndAssignment(export) {
-                const ourDecl = (export.declaration==="var" || export.declaration==="let") ? export.declaration : "const"
-                return `${ourDecl} ${export.name} = module.exports.${export.name} = `
-            }
-        */
-        
-        jsCode = jsCode.replace("export default", "_defaultExport = ")
-        jsCode = jsCode.split("\n").map(x => `  ${x}`).join("\n") // Indent nicely
-        jsCode = "(function() {\n  let _defaultExport = undefined\n\n" + jsCode + "\n\n\n  return _defaultExport\n})" + (execute ? "()\n" : "\n")
-        return jsCode
-    }
-    static getLoaderCode(modules: Dict<string>) {
-        const moduleCode = Object.keys(modules).map(k => `'${k}': ${Bundler.convJsModuleToFunction(modules[k], false)}`).join(", ")
-        return `
-            const __makeLoader = ${String(Bundler.getLoader)}
-            const require = __makeLoader({${moduleCode}})
-        `
-    }
-    static getLoader(modules: Dict<Function>) {
-        const loadedModules: Record<string, Function> = {}
-        // TODO: keep a stack to detect infinite recursion
-        // TODO: trap errors during module init and say so
-        return (moduleName: string) => {
-        if (!modules[moduleName]) throw `Module '${moduleName}' not found`
-        if (!loadedModules[moduleName]) loadedModules[moduleName] = modules[moduleName]()
-        return loadedModules[moduleName]
-        }
-    }
+export class VueSfcs {
     static convVueModuleToInitGlobalCode(componentKey: string, jsModuleCode: string) {
         return `
             window.vues = window.vues || {}
-            window.vues['${componentKey}'] = ${Bundler.convJsModuleToFunction(jsModuleCode)}
+            window.vues['${componentKey}'] = ${SimpleBundler.moduleCodeToIife(jsModuleCode)}
             Vue.component("${componentKey}", window.vues['${componentKey}']);
         `
     }
@@ -82,7 +36,7 @@ export default class Bundler {
         return text.substring(start, end)
         }
         const scriptModule = getTag("script", vueSfcCode) || "export default {}"
-        let scriptIife = Bundler.convJsModuleToFunction(scriptModule)
+        let scriptIife = SimpleBundler.moduleCodeToIife(scriptModule)
         if (classTransformer) scriptIife = `(${classTransformer})(${scriptIife})`
         const template = getTag("template", vueSfcCode)
         const css = getTag("style", vueSfcCode)
@@ -186,8 +140,8 @@ function vueClassComponent(opts: Record<string, any>, cl: any) {
 }
 
 
-type InputModule = {codeString: string, key?: string, main?: boolean}
-class SimpleBundler {
+export type InputModule = {codeString: string, key?: string, main?: boolean}
+export class SimpleBundler {
   modulesToBundle: InputModule[] = []
   pathResolver: (pathString: string, fromModule: InputModule) => InputModule|undefined = 
     (pathString: string, fromModule: InputModule) => {
@@ -213,87 +167,147 @@ class SimpleBundler {
       return ret
   }
 
+  static _moduleLoader = function moduleLoader(factories: {factory: Function, key: string}[]) {
+    const modules: Record<string, {key: string, factory: Function, exports: any, loading: boolean, loaded: boolean}> = {}
+    factories.forEach(f => { modules[f.key] = { key: f.key, factory: f.factory, exports: {}, loading: false, loaded: false }})
+
+    const require = function (key: string) {
+      if (!modules[key]) throw "Module not found in bundle: " + key
+      const m = modules[key]
+      if (m.loading) throw "Circular dependency found when loading module: " + key
+      if (!m.loaded) {
+        m.loading = true
+        try {
+          m.factory(m, m.exports, require)
+          m.loading = false
+          m.loaded = true
+        } catch (ex) {
+          m.loading = false
+          throw new Error("Error while running module '" + key + "': " + ex)
+        }
+      }
+      return m.exports
+    }
+    return require
+  }
+
   bundle() {
-    const modulesToInclude = this.modulesToBundle.slice()
-    // Resolve any calls to require() to the module referred to, add those modules to our list to include, and replace the path with they key of the resolved-to module
-    for (const module of modulesToInclude) {
-      module.codeString = module.codeString.replace(/require\([\'\"](.+?)[\'\"]\)/g, (_, path: string) => {
-        const resolved = this.pathResolver(path, module)
-        if (!resolved) throw `'${module.key}': Could not resolve module path '${path}'`
-        if (!modulesToInclude.includes(resolved)) modulesToInclude.push(resolved)
+    const modulesToCompile = this.modulesToBundle.slice()
+    const compiledModules: (InputModule & {factoryFuncString: string})[] = []
+
+    // 'Compile' each module to a factory function, i.e. a function that takes args (module, exports, require) and mutates module.exports
+    // The callback we pass to moduleCodeToFactoryFunc will also resolve calls to require() using our class instances's `pathResolver` function, and will add any 'require'd modules to our list of modules to add to our bundle.
+    for (const m of modulesToCompile) {
+      const factoryFuncString = SimpleBundler.moduleCodeToFactoryFunc(m.codeString, path => {
+        const resolved = this.pathResolver(path, m)
+        if (!resolved) throw `'${m.key}': Could not resolve module path '${path}'`
+        if (!modulesToCompile.includes(resolved)) modulesToCompile.push(resolved) // Add the 'require'd module to our list
         return `require('${resolved.key}')`
       })
+      compiledModules.push({...m, factoryFuncString })
     }
-    function moduleLoader(factories: {factory: Function, key: string}[]) {
-      const modules: Record<string, {key: string, factory: Function, exports: any, loading: boolean, loaded: boolean}> = {}
-      factories.forEach(f => { modules[f.key] = { key: f.key, factory: f.factory, exports: {}, loading: false, loaded: false }})
 
-      const require = function (key: string) {
-        if (!modules[key]) throw "Module not found in bundle: " + key
-        const m = modules[key]
-        if (m.loading) throw "Circular dependency found when loading module: " + key
-        if (!m.loaded) {
-          m.loading = true
-          try {
-            m.factory(m, require)
-            m.loading = false
-            m.loaded = true
-          } catch (ex) {
-            m.loading = false
-            throw new Error("Error while running module '" + key + "': " + ex)
-          }
-        }
-        return m.exports
-      }
-      return require
-    }
+    // Return loader code
     return `
-      (function(){
+      ;(function(){
         const factories = [
-          ${modulesToInclude.map(m => `{
+          ${compiledModules.map(m => `{
             key: ${JSON.stringify(m.key)},
-            factory: function(module, require) {
-              ${m.codeString}
-            },
+            factory: ${m.factoryFuncString},
             main: ${!!m.main}
           }`).join(",")}
         ]
-        const require = ${moduleLoader}(factories)
+        const require = ${SimpleBundler._moduleLoader}(factories)
         factories.filter(x => x.main).forEach(x => require(x.key)) // Run any 'main' modules
         return require
       })()
     `
   }
-  static _test() {
-    const ourModules = [
-      {
-        key: '/greet.js',
-        codeString: `
-          const { getGreeting } = require('./src/utils')
-          const greet = name => say(getGreeting(name))
-          module.exports = greet
-        `
-      },
-      {
-        key: '/src/utils.js',
-        codeString: `
-          module.exports.getGreeting = name => 'Hello ' + name + '!'
-        `
-      },
-      { 
-        key: '/src/main.js',
-        codeString: `
-          const greet = require("../greet")
-          module.exports = greet("world")
-        `,
-        main: true
-      }
-    ]
 
-    const b = new SimpleBundler()
-    b.modulesToBundle.push(...ourModules)
-    const out = b.bundle()
-    const say = typeof alert === 'function' ? alert : console.info // since browsers don't have alert
-    eval(out) // Should produce "Hello world!" in the console or alert
+  static moduleCodeToFactoryFunc(jsCode: string, importCallback?: (path: string) => string) {
+    // Optionally resolve calls to `require()`
+    if (importCallback) jsCode = jsCode.replace(/require\([\'\"](.+?)[\'\"]\)/g, (_, path) => importCallback(path))
+
+    // Convert ES6 export syntax. For now we only support `export default <expr>`
+    jsCode = jsCode.replace("export default", "module.exports.default = ")
+    /* TODO: allow named exports too
+        (function(module) { module = module || {}; module.exports = {}; CODE_HERE; return module.exports })
+    */
+    /* TODO allow exporting functions, classes, const/vars
+        export const/var/let foo = 5                =>      const/var/let foo = module.exports.foo = 5
+        export function foo() { }                   =>      const foo = module.exports.foo = function foo() { }
+        export class foo { }                        =>      const foo = module.exports.foo = class foo() { }
+        export default class/function foo { }       =>      const foo = module.exports._default = class/function foo() { }
+        export default 5                            =>      module.exports._default = 5
+                                            Or to simplify: const _default = module.exports._default = 5
+
+        parseExport(str, pos): {name: string|"_default", declaration: "const"|"var"|"let"|"function"|"class"|null, lengthIncludingName: number} {
+          // Eat export
+          // Optionally eat default
+          // Optionally eat declaration: const/let/var/function/async function/class
+          // If there was a declaration, eat the name (identifier)
+        }
+        exportToDeclAndAssignment(export) {
+            const ourDecl = (export.declaration==="var" || export.declaration==="let") ? export.declaration : "const"
+            return `${ourDecl} ${export.name} = module.exports.${export.name} = `
+        }
+    */
+    
+    // Wrap in a factory function
+    // jsCode = jsCode.split("\n").map(x => `  ${x}`).join("\n") // Optionally: Indent nicely
+    jsCode = `function(module, exports, require) {\n${jsCode}\n}`
+    return jsCode
   }
+  static moduleCodeToIife(jsCode: string, useDefaultExportIfAny = true) {
+    return `(function() {
+      const tempModule = { exports: {} }
+      const tempRequire = function() { throw "Error: require() cannot be called when using 'moduleCodeToIife'" }
+      const tempFactory = ${SimpleBundler.moduleCodeToFactoryFunc(jsCode)}
+      tempFactory(tempModule, tempModule.exports, tempRequire)
+      return ${useDefaultExportIfAny ? 'tempModule.exports.default || ' : ''}tempModule.exports
+    })()`
+  }  
+}
+
+function testSimpleBundler() {
+  const ourModules = [
+    {
+      key: '/greet.js',
+      codeString: `
+        const { getGreeting } = require('./src/utils')
+        const greet = name => say(getGreeting(name))
+        module.exports = greet
+      `
+    },
+    {
+      key: '/src/utils.js',
+      codeString: `
+        module.exports.getGreeting = name => 'Hello ' + name + '!'
+      `
+    },
+    { 
+      key: '/src/main.js',
+      codeString: `
+        const greet = require("../greet")
+        module.exports = greet("world")
+      `,
+      main: true
+    }
+  ]
+
+  const b = new SimpleBundler()
+  b.modulesToBundle.push(...ourModules)
+  const out = b.bundle()
+  const say = typeof alert === 'function' ? alert : console.info // since browsers don't have alert
+  evalEx(out) // Should produce "Hello world!" in the console or alert
+
+  // Now test the IIFE way
+  say(evalEx(SimpleBundler.moduleCodeToIife(`
+    export default { message: "Hello from a module" }
+  `)).message)
+}
+
+export function evalEx(exprCode: string, customScope = {}) {
+  // Evaluates in global scope, with optional special variables in scope
+  return Function(...Object.keys(customScope), `return (${exprCode})`)(...Object.values(customScope))
 }

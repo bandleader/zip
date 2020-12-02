@@ -1,10 +1,22 @@
-declare type Dict<T> = Record<string, T>;
-export default class Bundler {
-    static convJsModuleToFunction(jsCode: string, execute?: boolean): string;
-    static getLoaderCode(modules: Dict<string>): string;
-    static getLoader(modules: Dict<Function>): (moduleName: string) => Function;
+export declare class VueSfcs {
     static convVueModuleToInitGlobalCode(componentKey: string, jsModuleCode: string): string;
     static vueClassTransformerScript(): string;
     static convVueSfcToJsModule(vueSfcCode: string, classTransformer?: string): string;
 }
-export {};
+export declare type InputModule = {
+    codeString: string;
+    key?: string;
+    main?: boolean;
+};
+export declare class SimpleBundler {
+    modulesToBundle: InputModule[];
+    pathResolver: (pathString: string, fromModule: InputModule) => InputModule | undefined;
+    static _moduleLoader: (factories: {
+        factory: Function;
+        key: string;
+    }[]) => (key: string) => any;
+    bundle(): string;
+    static moduleCodeToFactoryFunc(jsCode: string, importCallback?: (path: string) => string): string;
+    static moduleCodeToIife(jsCode: string, useDefaultExportIfAny?: boolean): string;
+}
+export declare function evalEx(exprCode: string, customScope?: {}): any;

@@ -7,7 +7,7 @@
 //      \|_______|\|__|\|__|   
 //                             
 
-import Bundler from './bundler'
+import * as Bundler from './bundler'
 import GraphQueryRunner from './graph'
 
 type Dict<T> = Record<string, T>
@@ -30,11 +30,6 @@ function clearableScheduler() {
     setInterval: (fn: Function, ms: number) => addAndReturn(timeouts, setInterval(fn, ms)),
     clear() { timeouts.forEach(clearTimeout); intervals.forEach(clearInterval); timeouts = []; intervals = [] },
   }
-}
-
-function evalEx(exprCode: string, customScope = {}) {
-  // Evaluates in global scope, with optional special variables in scope
-  return Function(...Object.keys(customScope), `return (${exprCode})`)(...Object.values(customScope))
 }
 
 export default class ZipRunner {
@@ -65,7 +60,7 @@ export default class ZipRunner {
   startBackend() {
     // TODO use clearableScheduler
     const backendModuleText = this.getFile("backend.js")
-    this.backend = evalEx(Bundler.convJsModuleToFunction(backendModuleText, true))
+    this.backend = Bundler.evalEx(Bundler.SimpleBundler.moduleCodeToIife(backendModuleText))
     if (typeof this.backend === 'function') this.backend = this.backend()
     if (Object.keys(this.backend).filter(x => x !== 'greeting').length) {
       console.log("Loaded backend with methods:", Object.keys(this.backend).join(", "))
@@ -140,7 +135,7 @@ export default class ZipRunner {
         contents: this.site.files[path].data 
       }
     })
-    scripts.push(...vues.map(v => Bundler.convVueModuleToInitGlobalCode(v.componentKey, Bundler.convVueSfcToJsModule(v.contents, Bundler.vueClassTransformerScript()))))
+    scripts.push(...vues.map(v => Bundler.VueSfcs.convVueModuleToInitGlobalCode(v.componentKey, Bundler.VueSfcs.convVueSfcToJsModule(v.contents, Bundler.VueSfcs.vueClassTransformerScript()))))
 
 
 
