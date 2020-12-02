@@ -184,3 +184,116 @@ function vueClassComponent(opts: Record<string, any>, cl: any) {
     // Done!
     return ret
 }
+
+
+type InputModule = {codeString: string, key?: string, main?: boolean}
+class SimpleBundler {
+  modulesToBundle: InputModule[] = []
+  pathResolver: (pathString: string, fromModule: InputModule) => InputModule|undefined = 
+    (pathString: string, fromModule: InputModule) => {
+      let ret: InputModule|undefined = undefined
+      const attempt = (what: typeof ret) => { if (!ret) ret = what }
+      const normalizePath = (path: string) => path.split("/").reduce((a,c) => 
+          (c === ".") ? a : 
+          (c === ".." && a.length) ? a.slice(0, a.length - 1) : 
+          (c === "..") ? (()=>{throw `Invalid path: '${path}'`})() : 
+          [...a, c], 
+        [] as string[]).join("/")
+      const attemptPath = (path: string) => attempt(this.modulesToBundle.find(x => x.key === normalizePath(path)))
+      const attemptPathWithExts = (path: string) => { [path, path + ".js", path + "/index.js"].forEach(attemptPath) }
+      if (pathString.startsWith("./") || pathString.startsWith("../")) {
+        const getDir = (path: string) => path.split("/").slice(0, path.split("/").length - 1).join("/")
+        const moduleDir = getDir(fromModule.key || "")
+        attemptPathWithExts(moduleDir + "/" + pathString)
+      } else if (pathString.startsWith("/")) {
+        attemptPathWithExts(pathString)
+      } else {
+        throw `Module '${fromModule.key}': Unsupported require path scheme '${pathString}'`
+      }
+      return ret
+  }
+
+  bundle() {
+    const modulesToInclude = this.modulesToBundle.slice()
+    // Resolve any calls to require() to the module referred to, add those modules to our list to include, and replace the path with they key of the resolved-to module
+    for (const module of modulesToInclude) {
+      module.codeString = module.codeString.replace(/require\([\'\"](.+?)[\'\"]\)/g, (_, path: string) => {
+        const resolved = this.pathResolver(path, module)
+        if (!resolved) throw `'${module.key}': Could not resolve module path '${path}'`
+        if (!modulesToInclude.includes(resolved)) modulesToInclude.push(resolved)
+        return `require('${resolved.key}')`
+      })
+    }
+    function moduleLoader(factories: {factory: Function, key: string}[]) {
+      const modules: Record<string, {key: string, factory: Function, exports: any, loading: boolean, loaded: boolean}> = {}
+      factories.forEach(f => { modules[f.key] = { key: f.key, factory: f.factory, exports: {}, loading: false, loaded: false }})
+
+      const require = function (key: string) {
+        if (!modules[key]) throw "Module not found in bundle: " + key
+        const m = modules[key]
+        if (m.loading) throw "Circular dependency found when loading module: " + key
+        if (!m.loaded) {
+          m.loading = true
+          try {
+            m.factory(m, require)
+            m.loading = false
+            m.loaded = true
+          } catch (ex) {
+            m.loading = false
+            throw new Error("Error while running module '" + key + "': " + ex)
+          }
+        }
+        return m.exports
+      }
+      return require
+    }
+    return `
+      (function(){
+        const factories = [
+          ${modulesToInclude.map(m => `{
+            key: ${JSON.stringify(m.key)},
+            factory: function(module, require) {
+              ${m.codeString}
+            },
+            main: ${!!m.main}
+          }`).join(",")}
+        ]
+        const require = ${moduleLoader}(factories)
+        factories.filter(x => x.main).forEach(x => require(x.key)) // Run any 'main' modules
+        return require
+      })()
+    `
+  }
+  static _test() {
+    const ourModules = [
+      {
+        key: '/greet.js',
+        codeString: `
+          const { getGreeting } = require('./src/utils')
+          const greet = name => say(getGreeting(name))
+          module.exports = greet
+        `
+      },
+      {
+        key: '/src/utils.js',
+        codeString: `
+          module.exports.getGreeting = name => 'Hello ' + name + '!'
+        `
+      },
+      { 
+        key: '/src/main.js',
+        codeString: `
+          const greet = require("../greet")
+          module.exports = greet("world")
+        `,
+        main: true
+      }
+    ]
+
+    const b = new SimpleBundler()
+    b.modulesToBundle.push(...ourModules)
+    const out = b.bundle()
+    const say = typeof alert === 'function' ? alert : console.info // since browsers don't have alert
+    eval(out) // Should produce "Hello world!" in the console or alert
+  }
+}
