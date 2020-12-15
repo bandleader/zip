@@ -477,7 +477,7 @@ var ZipRunner = /** @class */ (function () {
     ZipRunner.prototype.startBackend = function () {
         // TODO use clearableScheduler
         var backendModuleText = this.getFile("backend.js");
-        this.backend = evalEx(SimpleBundler.moduleCodeToIife(backendModuleText, undefined, true));
+        this.backend = evalEx(SimpleBundler.moduleCodeToIife(backendModuleText, undefined, true), { require: require });
         if (typeof this.backend === 'function')
             this.backend = this.backend();
         if (Object.keys(this.backend).filter(function (x) { return x !== 'greeting'; }).length) {
