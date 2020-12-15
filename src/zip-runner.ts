@@ -60,7 +60,7 @@ export default class ZipRunner {
   startBackend() {
     // TODO use clearableScheduler
     const backendModuleText = this.getFile("backend.js")
-    this.backend = Bundler.evalEx(Bundler.SimpleBundler.moduleCodeToIife(backendModuleText))
+    this.backend = Bundler.evalEx(Bundler.SimpleBundler.moduleCodeToIife(backendModuleText, undefined, true))
     if (typeof this.backend === 'function') this.backend = this.backend()
     if (Object.keys(this.backend).filter(x => x !== 'greeting').length) {
       console.log("Loaded backend with methods:", Object.keys(this.backend).join(", "))

@@ -17,6 +17,6 @@ export declare class SimpleBundler {
     }[]) => (key: string) => any;
     bundle(): string;
     static moduleCodeToFactoryFunc(jsCode: string, importCallback?: (path: string) => string): string;
-    static moduleCodeToIife(jsCode: string, useDefaultExportIfAny?: boolean): string;
+    static moduleCodeToIife(jsCode: string, useDefaultExportIfAny?: boolean, allowRequire?: boolean): string;
 }
 export declare function evalEx(exprCode: string, customScope?: {}): any;

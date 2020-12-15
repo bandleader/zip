@@ -274,9 +274,10 @@ var SimpleBundler = /** @class */ (function () {
         jsCode = "function(module, exports, require) {\n" + jsCode + "\n}";
         return jsCode;
     };
-    SimpleBundler.moduleCodeToIife = function (jsCode, useDefaultExportIfAny) {
+    SimpleBundler.moduleCodeToIife = function (jsCode, useDefaultExportIfAny, allowRequire) {
         if (useDefaultExportIfAny === void 0) { useDefaultExportIfAny = true; }
-        return "(function() {\n      const tempModule = { exports: {} }\n      const tempRequire = function() { throw \"Error: require() cannot be called when using 'moduleCodeToIife'\" }\n      const tempFactory = " + SimpleBundler.moduleCodeToFactoryFunc(jsCode) + "\n      tempFactory(tempModule, tempModule.exports, tempRequire)\n      return " + (useDefaultExportIfAny ? 'tempModule.exports.default || ' : '') + "tempModule.exports\n    })()";
+        if (allowRequire === void 0) { allowRequire = false; }
+        return "(function() {\n      const tempModule = { exports: {} }\n      const tempDisableRequire = function() { throw \"Error: require() cannot be called when using 'moduleCodeToIife'\" }\n      const tempFactory = " + SimpleBundler.moduleCodeToFactoryFunc(jsCode) + "\n      tempFactory(tempModule, tempModule.exports, " + (allowRequire ? 'require' : 'tempDisableRequire') + ")\n      return " + (useDefaultExportIfAny ? 'tempModule.exports.default || ' : '') + "tempModule.exports\n    })()";
     };
     SimpleBundler._moduleLoader = function moduleLoader(factories) {
         var modules = {};
@@ -474,7 +475,7 @@ var ZipRunner = /** @class */ (function () {
     ZipRunner.prototype.startBackend = function () {
         // TODO use clearableScheduler
         var backendModuleText = this.getFile("backend.js");
-        this.backend = evalEx(SimpleBundler.moduleCodeToIife(backendModuleText));
+        this.backend = evalEx(SimpleBundler.moduleCodeToIife(backendModuleText, undefined, true));
         if (typeof this.backend === 'function')
             this.backend = this.backend();
         if (Object.keys(this.backend).filter(function (x) { return x !== 'greeting'; }).length) {

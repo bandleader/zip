@@ -257,12 +257,12 @@ export class SimpleBundler {
     jsCode = `function(module, exports, require) {\n${jsCode}\n}`
     return jsCode
   }
-  static moduleCodeToIife(jsCode: string, useDefaultExportIfAny = true) {
+  static moduleCodeToIife(jsCode: string, useDefaultExportIfAny = true, allowRequire = false) {
     return `(function() {
       const tempModule = { exports: {} }
-      const tempRequire = function() { throw "Error: require() cannot be called when using 'moduleCodeToIife'" }
+      const tempDisableRequire = function() { throw "Error: require() cannot be called when using 'moduleCodeToIife'" }
       const tempFactory = ${SimpleBundler.moduleCodeToFactoryFunc(jsCode)}
-      tempFactory(tempModule, tempModule.exports, tempRequire)
+      tempFactory(tempModule, tempModule.exports, ${allowRequire ? 'require' : 'tempDisableRequire'})
       return ${useDefaultExportIfAny ? 'tempModule.exports.default || ' : ''}tempModule.exports
     })()`
   }  
