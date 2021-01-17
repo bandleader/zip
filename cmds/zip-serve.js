@@ -37,10 +37,27 @@ watchDir(curContext().root)
 
 const server = http.createServer((request, response) => {
   console.log(request.method, request.url)
-  request.query = require('url').parse(request.url, true).query
-  response.send = x => (typeof x === 'object') ? response.end(JSON.stringify(x)) : response.end(x)
-  curContext().runner.handleRequest(request.url.split("?")[0], request, response)
-  //response.end(curContext().runner.getFrontendIndex())
+
+  // Check for static file
+  const normalizedStaticRoot = path.normalize(curContext().root + '/static')
+  const normalizedRequestLocalPath = path.normalize(`${normalizedStaticRoot}/${request.url}`)
+  if (normalizedRequestLocalPath.startsWith(normalizedStaticRoot) && fs.existsSync(normalizedRequestLocalPath))  {
+    const stat = fs.statSync(normalizedRequestLocalPath)
+    console.log('=>', normalizedRequestLocalPath)
+    response.writeHead(200, {
+      // TODO: Send content-type. Maybe just throw in the towel and use Express...
+      // 'Content-Type': 'audio/mpeg', 
+      'Content-Length': stat.size
+    })
+    const readStream = fs.createReadStream(normalizedRequestLocalPath)
+    readStream.pipe(response)
+  } else {
+    // Pass to Zip
+    request.query = require('url').parse(request.url, true).query
+    response.send = x => (typeof x === 'object') ? response.end(JSON.stringify(x)) : response.end(x)
+    curContext().runner.handleRequest(request.url.split("?")[0], request, response)
+    //response.end(curContext().runner.getFrontendIndex())
+  }
 })
 
 server.listen(port, (err) => {
