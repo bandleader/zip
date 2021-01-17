@@ -48,5 +48,14 @@ server.listen(port, (err) => {
     return console.log('An error occured: ', err)
   }
 
-  console.log(`zip-serve is listening on http://localhost:${port}`)
+  console.log(`
+  ________  ___  ________   
+ |\_____  \|\  \|\   __  \  
+  \|___/  /\ \  \ \  \|\  \ 
+      /  / /\ \  \ \   ____\
+     /  /_/__\ \  \ \  \___|
+    |\________\ \__\ \__\   
+     \|_______|\|__|\|__|   
+                         
+zip-serve is listening on http://localhost:${port}`)
 })
