@@ -41,7 +41,7 @@ const server = http.createServer((request, response) => {
   // Check for static file
   const normalizedStaticRoot = path.normalize(curContext().root + '/static')
   const normalizedRequestLocalPath = path.normalize(`${normalizedStaticRoot}/${request.url}`)
-  if (normalizedRequestLocalPath.startsWith(normalizedStaticRoot) && fs.existsSync(normalizedRequestLocalPath))  {
+  if (normalizedRequestLocalPath.startsWith(normalizedStaticRoot) && fs.existsSync(normalizedRequestLocalPath) && fs.statSync(normalizedRequestLocalPath).isFile()) {
     const stat = fs.statSync(normalizedRequestLocalPath)
     console.log('=>', normalizedRequestLocalPath)
     response.writeHead(200, {
