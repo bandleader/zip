@@ -312,6 +312,13 @@ function evalEx(exprCode, customScope) {
     return Function.apply(void 0, __spreadArrays(Object.keys(customScope), ["return (" + exprCode + ")"])).apply(void 0, Object.values(customScope));
 }
 
+var Bundler2 = /*#__PURE__*/Object.freeze({
+    __proto__: null,
+    VueSfcs: VueSfcs,
+    SimpleBundler: SimpleBundler,
+    evalEx: evalEx
+});
+
 // const a: NewGraphQuery = {
 //   _args: [23],
 //   fred: true,
@@ -451,6 +458,7 @@ var GraphQueryRunner = /** @class */ (function () {
 }());
 
 //   ________  ___  ________   
+var Bundler = Bundler2;
 var ZipRunner = /** @class */ (function () {
     function ZipRunner(site) {
         this.site = site;
@@ -475,7 +483,7 @@ var ZipRunner = /** @class */ (function () {
     ZipRunner.prototype.startBackend = function () {
         // TODO use clearableScheduler
         var backendModuleText = this.getFile("backend.js");
-        this.backend = evalEx(SimpleBundler.moduleCodeToIife(backendModuleText, undefined, true), { require: require });
+        this.backend = Bundler.evalEx(Bundler.SimpleBundler.moduleCodeToIife(backendModuleText, undefined, true), { require: require });
         if (typeof this.backend === 'function')
             this.backend = this.backend();
         if (Object.keys(this.backend).filter(function (x) { return x !== 'greeting'; }).length) {
@@ -552,7 +560,7 @@ var ZipRunner = /** @class */ (function () {
                 contents: _this.site.files[path].data
             };
         });
-        scripts.push.apply(scripts, vues.map(function (v) { return VueSfcs.convVueModuleToInitGlobalCode(v.componentKey, VueSfcs.convVueSfcToJsModule(v.contents, VueSfcs.vueClassTransformerScript())); }));
+        scripts.push.apply(scripts, vues.map(function (v) { return Bundler.VueSfcs.convVueModuleToInitGlobalCode(v.componentKey, Bundler.VueSfcs.convVueSfcToJsModule(v.contents, Bundler.VueSfcs.vueClassTransformerScript())); }));
         // Set up frontend routes
         var vuesPages = vues.filter(function (x) { return x.autoRoute; });
         scripts.push("\n      const routes = [\n        { path: '/', component: window.vues['pages-Home'] || window.vues['pages-home'] },\n        " + vuesPages.map(function (v) { return "{ path: '" + v.autoRoute + "', component: window.vues['" + v.componentKey + "'] }"; }).join(", ") + "\n      ]\n      // Add special routes for components that declare one\n      Object.values(window.vues).forEach(comp => {\n        if (comp.route) { \n          routes.push({ path: comp.route, component: comp })\n        }\n      })\n      const router = new VueRouter({\n        routes,\n        base: '" + (this.site.basePath || "/") + "',\n        mode: '" + (this.site.router.mode || 'history') + "'\n      })");
@@ -564,3 +572,4 @@ var ZipRunner = /** @class */ (function () {
 }());
 
 export default ZipRunner;
+export { Bundler };

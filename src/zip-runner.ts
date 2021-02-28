@@ -7,8 +7,10 @@
 //      \|_______|\|__|\|__|   
 //                             
 
-import * as Bundler from './bundler'
+import * as Bundler2 from './bundler'
+export const Bundler = Bundler2
 import GraphQueryRunner from './graph'
+
 
 type Dict<T> = Record<string, T>
 type ZipSite = { 

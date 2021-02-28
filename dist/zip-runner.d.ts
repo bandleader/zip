@@ -1,3 +1,5 @@
+import * as Bundler2 from './bundler';
+export declare const Bundler: typeof Bundler2;
 declare type Dict<T> = Record<string, T>;
 declare type ZipSite = {
     siteName: string;
