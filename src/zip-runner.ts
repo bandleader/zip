@@ -110,7 +110,7 @@ export default class ZipRunner {
     scripts.push(this.getFile("zip-client.js"))
     scripts.push("Zip.Backend = " + this.backendRpc.script) // RPC for backend methods
     const vueFiles = Object.keys(this.site.files).filter(x => x.endsWith(".vue")).map(path => ({ path, contents: this.site.files[path].data }))
-    scripts.push(ZipFrontend.fromMemory(vueFiles, this.site).script())
+    scripts.push(ZipFrontend.fromMemory(vueFiles, {...this.site, siteBrand: this.site.siteBrand! /* we assigned it in the constructor */ }).script())
     return scripts.join("\n")
   }
  
@@ -159,7 +159,7 @@ export function quickRpc(backend: Record<string, Function>, endpointUrl = "/api"
   return { script, handler, setup }
 }
 
-type ZipFrontendOptions = { basePath?: string, router?: { mode?: "history"|"hash" }, siteName: string }
+type ZipFrontendOptions = { basePath?: string, router?: { mode?: "history"|"hash" }, siteBrand: string }
 export class ZipFrontend {
   files: { path: string, contents: string }[] = []
   options: ZipFrontendOptions
@@ -200,7 +200,7 @@ export class ZipFrontend {
     out.push("vues.forEach(registerGlobally)")
     // Set up routes and call VueRouter
     out.push(`
-const routes = vues.filter(v => v.route).map((v, i) => ({ path: v.route, component: vues[i] }))
+const routes = vues.map((v, i) => ({ path: v.route, component: vues[i] })).filter(x => x.path)
 const router = new VueRouter({
   routes,
   base: '${this.options.basePath || "/"}',
@@ -218,7 +218,7 @@ const vueApp = new Vue({
         logout() { alert("TODO") },
       }
     }, 
-    siteName: ${JSON.stringify(this.options.siteName)},
+    siteBrand: ${JSON.stringify(this.options.siteBrand)},
     navMenuItems: vues.filter(v => v.menuText).map(v => ({ url: v.route, text: v.menuText })),
     deviceState: { user: null },
   },

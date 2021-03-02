@@ -36,7 +36,7 @@ declare type ZipFrontendOptions = {
     router?: {
         mode?: "history" | "hash";
     };
-    siteName: string;
+    siteBrand: string;
 };
 export declare class ZipFrontend {
     files: {

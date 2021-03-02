@@ -1,87 +1,22 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
   <head>
-    <title>{{siteName}}</title>
+    <title>{{siteBrand}}</title>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <!--<script src="/socket.io/socket.io.js"></script>-->
     <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
     <script src="https://unpkg.com/vue-router/dist/vue-router.js"></script>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootswatch/4.4.1/materia/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.13.0/css/all.min.css">
     <link rel="shortcut icon" href="https://cdn.glitch.com/9ece14af-9b69-4cc8-924e-90972a6076a8%2FZipLogo-small.png?v=1588249778747">
-    <style type="text/css">
-      main { margin: 2em 0 }
-    </style>
-
   </head>
   <body>
     <div id="app">
-      <header>
-        <div class="bs-component">
-          <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-            <router-link class="navbar-brand" to="/">{{siteBrand}}</router-link>
-            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarColor01" aria-controls="navbarColor01" aria-expanded="false" aria-label="Toggle navigation" onclick="toggleBootstrapNavbar(document.querySelector('.navbar-collapse'))">
-              <span class="navbar-toggler-icon"></span>
-            </button>
-
-            <div class="collapse navbar-collapse">
-              <ul class="navbar-nav mr-auto">
-                <li class="nav-item" v-for="i in $root.navMenuItems">
-                  <router-link class="nav-link" :to="i.url">{{i.text}}</router-link>
-                </li>
-              </ul>
-              <!--<form class="form-inline my-2 my-lg-0">
-                <input class="form-control mr-sm-2" type="text" placeholder="Search">
-                <button class="btn btn-secondary my-2 my-sm-0" type="submit">Search</button>
-              </form>-->
-              <button class="btn btn-primary" v-if="!$root.deviceState.user" @click="$root.App.identity.showLogin">Log in</button>
-              <span class="d-inline-block text-right" style="font-size: 1.5em" v-else>
-                <i class="fa fa-user-circle" style="font-size: 1.2em"></i>
-                <b>{{$root.deviceState.user.name || 'Anonymous'}}</b>
-                <br>
-                <button type="button" class="btn btn-sm bg-white" style="opacity: 0.7" href="javascript:void(0)" @click="$root.App.identity.logout">Log out</button>
-              </span>
-            </div>
-          </nav>
-        </div>
-      </header>
-      <main class="container" style="min-height: calc(100vh - 221px)">
+      <layout-app>
         <router-view></router-view>
-      </main>
-      <footer style="padding: 1em; margin-top: 1em; background: #444" class="text-light">
-        <h5><a href="/" class="text-light">© {{siteName}} 2020</a></h5>
-        <p class="text-muted">Another great thing made with Zip</p>
-        <p v-if="$root.deviceState.user">Logged in as <b>{{$root.deviceState.user.name || 'Anonymous'}}</b> -- <a href="javascript:void(0)" @click="$root.App.identity.logout">log out</a></p>
-        <p v-else><a href="javascript:void(0)" @click="$root.App.identity.showLogin">Log in</a></p>
-      </footer>
+      </layout-app>
     </div>
-
-    <script>
-      // Simple function to toggle a Bootstrap 4 navbar without Boostrap JS or even jQuery. Simplified from codepen.io/jasonbutz/pen/yPodOE
-      function toggleBootstrapNavbar(targetEl) {
-        var cl = targetEl.classList
-        var isShown = cl.contains("show") || cl.contains("collapsing")
-        if (isShown) { 
-          targetEl.style.height = targetEl.getBoundingClientRect().height + "px"
-          targetEl.offsetHeight // force reflow
-        }
-        cl.add("collapsing")
-        cl.remove("collapse")
-        cl.remove(isShown ? "show" : "collapsed")
-        targetEl.style.height = isShown ? '' : targetEl.scrollHeight + "px"
-        setTimeout(function () {
-            cl.remove("collapsing");
-            cl.add("collapse")
-            if (!isShown) {
-              cl.add("show")
-              targetEl.style.height = ""
-            }
-        }, 350)
-      }
-    </script>
-
   </body>
 </html>

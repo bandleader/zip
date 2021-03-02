@@ -537,7 +537,7 @@ var ZipRunner = /** @class */ (function () {
         scripts.push(this.getFile("zip-client.js"));
         scripts.push("Zip.Backend = " + this.backendRpc.script); // RPC for backend methods
         var vueFiles = Object.keys(this.site.files).filter(function (x) { return x.endsWith(".vue"); }).map(function (path) { return ({ path: path, contents: _this.site.files[path].data }); });
-        scripts.push(ZipFrontend.fromMemory(vueFiles, this.site).script());
+        scripts.push(ZipFrontend.fromMemory(vueFiles, __assign(__assign({}, this.site), { siteBrand: this.site.siteBrand /* we assigned it in the constructor */ })).script());
         return scripts.join("\n");
     };
     return ZipRunner;
@@ -632,9 +632,9 @@ var ZipFrontend = /** @class */ (function () {
         out.push("const registerGlobally = x => Vue.component(x.name, x)");
         out.push("vues.forEach(registerGlobally)");
         // Set up routes and call VueRouter
-        out.push("\nconst routes = vues.filter(v => v.route).map((v, i) => ({ path: v.route, component: vues[i] }))\nconst router = new VueRouter({\n  routes,\n  base: '" + (this.options.basePath || "/") + "',\n  mode: '" + (((_a = this.options.router) === null || _a === void 0 ? void 0 : _a.mode) || 'history') + "'\n})");
+        out.push("\nconst routes = vues.map((v, i) => ({ path: v.route, component: vues[i] })).filter(x => x.path)\nconst router = new VueRouter({\n  routes,\n  base: '" + (this.options.basePath || "/") + "',\n  mode: '" + (((_a = this.options.router) === null || _a === void 0 ? void 0 : _a.mode) || 'history') + "'\n})");
         // Call Vue
-        out.push("\nconst vueApp = new Vue({ \n  el: '#app', \n  router, \n  data: { \n    App: {\n      identity: {\n        showLogin() { alert(\"TODO\") },\n        logout() { alert(\"TODO\") },\n      }\n    }, \n    siteName: " + JSON.stringify(this.options.siteName) + ",\n    navMenuItems: vues.filter(v => v.menuText).map(v => ({ url: v.route, text: v.menuText })),\n    deviceState: { user: null },\n  },\n  created() {\n  }\n})");
+        out.push("\nconst vueApp = new Vue({ \n  el: '#app', \n  router, \n  data: { \n    App: {\n      identity: {\n        showLogin() { alert(\"TODO\") },\n        logout() { alert(\"TODO\") },\n      }\n    }, \n    siteBrand: " + JSON.stringify(this.options.siteBrand) + ",\n    navMenuItems: vues.filter(v => v.menuText).map(v => ({ url: v.route, text: v.menuText })),\n    deviceState: { user: null },\n  },\n  created() {\n  }\n})");
         // return ";(function(){\n" + out.join("\n") + "\n})()"
         return out.join("\n");
     };
