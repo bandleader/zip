@@ -77,7 +77,6 @@ export default class ZipRunner {
   }
  
   handleRequest(path: string, req: any, resp: any) {
-    // console.log(path)
     if (!resp.json) resp.json = (obj: any) => resp.send(JSON.stringify(obj))
     
     const sendErr = (err: any) => resp.send({ err: String(err) })
@@ -200,31 +199,32 @@ export class ZipFrontend {
     out.push("const registerGlobally = x => Vue.component(x.name, x)")
     out.push("vues.forEach(registerGlobally)")
     // Set up routes and call VueRouter
-    out.push("const routes = vues.filter(v => v.route).map((v, i) => ({ path: v.route, component: vues[i] }))")
-    out.push(`console.log(vues.map(v=>v.name));const router = new VueRouter({
-      routes,
-      base: '${this.options.basePath || "/"}',
-      mode: '${this.options.router?.mode || 'history'}'
-    })`)
+    out.push(`
+const routes = vues.filter(v => v.route).map((v, i) => ({ path: v.route, component: vues[i] }))
+const router = new VueRouter({
+  routes,
+  base: '${this.options.basePath || "/"}',
+  mode: '${this.options.router?.mode || 'history'}'
+})`)
     // Call Vue
     out.push(`
-    const vueApp = new Vue({ 
-      el: '#app', 
-      router, 
-      data: { 
-        App: {
-          identity: {
-            showLogin() { alert("TODO") },
-            logout() { alert("TODO") },
-          }
-        }, 
-        siteName: ${JSON.stringify(this.options.siteName)},
-        navMenuItems: vues.filter(v => v.menuText).map(v => ({ url: v.route, text: v.menuText })),
-        deviceState: { user: null },
-      },
-      created() {
+const vueApp = new Vue({ 
+  el: '#app', 
+  router, 
+  data: { 
+    App: {
+      identity: {
+        showLogin() { alert("TODO") },
+        logout() { alert("TODO") },
       }
-    })`)
+    }, 
+    siteName: ${JSON.stringify(this.options.siteName)},
+    navMenuItems: vues.filter(v => v.menuText).map(v => ({ url: v.route, text: v.menuText })),
+    deviceState: { user: null },
+  },
+  created() {
+  }
+})`)
     // return ";(function(){\n" + out.join("\n") + "\n})()"
     return out.join("\n")
   }

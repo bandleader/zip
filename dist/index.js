@@ -502,7 +502,6 @@ var ZipRunner = /** @class */ (function () {
         this.backendRpc = quickRpc(this.backend, "/api/qrpc");
     };
     ZipRunner.prototype.handleRequest = function (path, req, resp) {
-        // console.log(path)
         if (!resp.json)
             resp.json = function (obj) { return resp.send(JSON.stringify(obj)); };
         /*const tryWith = (msgPrefix: string, fn: Function) => {
@@ -633,10 +632,9 @@ var ZipFrontend = /** @class */ (function () {
         out.push("const registerGlobally = x => Vue.component(x.name, x)");
         out.push("vues.forEach(registerGlobally)");
         // Set up routes and call VueRouter
-        out.push("const routes = vues.filter(v => v.route).map((v, i) => ({ path: v.route, component: vues[i] }))");
-        out.push("console.log(vues.map(v=>v.name));const router = new VueRouter({\n      routes,\n      base: '" + (this.options.basePath || "/") + "',\n      mode: '" + (((_a = this.options.router) === null || _a === void 0 ? void 0 : _a.mode) || 'history') + "'\n    })");
+        out.push("\nconst routes = vues.filter(v => v.route).map((v, i) => ({ path: v.route, component: vues[i] }))\nconst router = new VueRouter({\n  routes,\n  base: '" + (this.options.basePath || "/") + "',\n  mode: '" + (((_a = this.options.router) === null || _a === void 0 ? void 0 : _a.mode) || 'history') + "'\n})");
         // Call Vue
-        out.push("\n    const vueApp = new Vue({ \n      el: '#app', \n      router, \n      data: { \n        App: {\n          identity: {\n            showLogin() { alert(\"TODO\") },\n            logout() { alert(\"TODO\") },\n          }\n        }, \n        siteName: " + JSON.stringify(this.options.siteName) + ",\n        navMenuItems: vues.filter(v => v.menuText).map(v => ({ url: v.route, text: v.menuText })),\n        deviceState: { user: null },\n      },\n      created() {\n      }\n    })");
+        out.push("\nconst vueApp = new Vue({ \n  el: '#app', \n  router, \n  data: { \n    App: {\n      identity: {\n        showLogin() { alert(\"TODO\") },\n        logout() { alert(\"TODO\") },\n      }\n    }, \n    siteName: " + JSON.stringify(this.options.siteName) + ",\n    navMenuItems: vues.filter(v => v.menuText).map(v => ({ url: v.route, text: v.menuText })),\n    deviceState: { user: null },\n  },\n  created() {\n  }\n})");
         // return ";(function(){\n" + out.join("\n") + "\n})()"
         return out.join("\n");
     };
