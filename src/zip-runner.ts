@@ -36,6 +36,7 @@ function clearableScheduler() {
 
 export default class ZipRunner {
   backend: any
+  backendRpc: ReturnType<typeof quickRpc>
 
   constructor(public site: ZipSite) { 
     site.siteBrand = site.siteBrand || site.siteName
@@ -67,6 +68,12 @@ export default class ZipRunner {
     if (Object.keys(this.backend).filter(x => x !== 'greeting').length) {
       console.log("Loaded backend with methods:", Object.keys(this.backend).join(", "))
     }
+
+    // Allow graph queries
+    const graphResolver = this.backend.graph
+    if (graphResolver) this.backend.graph = (queryObj: any) => GraphQueryRunner.resolve(graphResolver, queryObj)
+    
+    this.backendRpc = quickRpc(this.backend, "/api/qrpc")
   }
  
   handleRequest(path: string, req: any, resp: any) {
@@ -87,29 +94,11 @@ export default class ZipRunner {
     } else if (path == "/_zipver") {
       resp.send(require('../package.json').version)
     } else if (path.startsWith("/api/")) {
+      // REST API -- not currently implemented because we have to think about strings
       const method = path.split("/")[2]
-      if (!this.backend[method]) {
-        sendErr(`Backend method '${method}' not found`)
-      } else {
-        try {
-          const args = JSON.parse(req.query.args || '[""]')
-          let result = null 
-          if (method === "graph") {
-            const queryObj = args[0]
-            let resolver = this.backend[method]
-            result = GraphQueryRunner.resolve(resolver, queryObj)
-          } else {
-            result = this.backend[method](...args)
-          }          
-          const resultPromise: Promise<any> = result['then'] ? result : Promise.resolve(result)
-          return resultPromise.then(
-            result => resp.send({ result }),
-            sendErr
-          )          
-        } catch (ex) {
-          sendErr(ex)
-        }
-      }
+      throw "REST API not yet implemented"
+    } else if (path === "/api/qrpc") {
+      this.backendRpc.handler(req, resp)
     } else {
       resp.send(this.getFrontendIndex())
     }
@@ -120,11 +109,7 @@ export default class ZipRunner {
     scripts.push(this.getFile("zip-client.js"))
 
     // Create RPC for backend methods
-    const methods = Object.keys(this.backend)    
-    for (const key of Object.keys(this.backend)) {
-      scripts.push(`Zip.Backend['${key}'] = (...args) => Zip.Backend._call('${key}', ...args)`)
-      scripts.push(`Zip.Backend['${key}'].loader = (_default, ...args) => Zip.Utils.asyncLoader(() => Zip.Backend._call('${key}', ...args), _default)`)
-    }
+    scripts.push("Zip.Backend = " + this.backendRpc.script)
 
     // Add all Vue components
     const getFileName = (path: string) => path.split("/")[path.split("/").length-1]

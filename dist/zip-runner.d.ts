@@ -16,11 +16,12 @@ declare type ZipFile = {
 export default class ZipRunner {
     site: ZipSite;
     backend: any;
+    backendRpc: ReturnType<typeof quickRpc>;
     constructor(site: ZipSite);
     getFile(path: string): string;
     getFrontendIndex(): string;
     startBackend(): void;
-    handleRequest(path: string, req: any, resp: any): Promise<any>;
+    handleRequest(path: string, req: any, resp: any): void;
     getFrontendScript(): string;
 }
 export declare function quickRpc(backend: Record<string, Function>, endpointUrl?: string): {

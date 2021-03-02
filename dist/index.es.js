@@ -489,11 +489,13 @@ var ZipRunner = /** @class */ (function () {
         if (Object.keys(this.backend).filter(function (x) { return x !== 'greeting'; }).length) {
             console.log("Loaded backend with methods:", Object.keys(this.backend).join(", "));
         }
+        // Allow graph queries
+        var graphResolver = this.backend.graph;
+        if (graphResolver)
+            this.backend.graph = function (queryObj) { return GraphQueryRunner.resolve(graphResolver, queryObj); };
+        this.backendRpc = quickRpc(this.backend, "/api/qrpc");
     };
     ZipRunner.prototype.handleRequest = function (path, req, resp) {
-        var _a;
-        // console.log(path)
-        var sendErr = function (err) { return resp.send({ err: String(err) }); };
         /*const tryWith = (msgPrefix: string, fn: Function) => {
           try {
             const result = fn()
@@ -510,29 +512,12 @@ var ZipRunner = /** @class */ (function () {
             resp.send(require('../package.json').version);
         }
         else if (path.startsWith("/api/")) {
+            // REST API -- not currently implemented because we have to think about strings
             var method = path.split("/")[2];
-            if (!this.backend[method]) {
-                sendErr("Backend method '" + method + "' not found");
-            }
-            else {
-                try {
-                    var args = JSON.parse(req.query.args || '[""]');
-                    var result = null;
-                    if (method === "graph") {
-                        var queryObj = args[0];
-                        var resolver = this.backend[method];
-                        result = GraphQueryRunner.resolve(resolver, queryObj);
-                    }
-                    else {
-                        result = (_a = this.backend)[method].apply(_a, args);
-                    }
-                    var resultPromise = result['then'] ? result : Promise.resolve(result);
-                    return resultPromise.then(function (result) { return resp.send({ result: result }); }, sendErr);
-                }
-                catch (ex) {
-                    sendErr(ex);
-                }
-            }
+            throw "REST API not yet implemented";
+        }
+        else if (path === "/api/qrpc") {
+            this.backendRpc.handler(req, resp);
         }
         else {
             resp.send(this.getFrontendIndex());
@@ -543,12 +528,7 @@ var ZipRunner = /** @class */ (function () {
         var scripts = [];
         scripts.push(this.getFile("zip-client.js"));
         // Create RPC for backend methods
-        var methods = Object.keys(this.backend);
-        for (var _i = 0, _a = Object.keys(this.backend); _i < _a.length; _i++) {
-            var key = _a[_i];
-            scripts.push("Zip.Backend['" + key + "'] = (...args) => Zip.Backend._call('" + key + "', ...args)");
-            scripts.push("Zip.Backend['" + key + "'].loader = (_default, ...args) => Zip.Utils.asyncLoader(() => Zip.Backend._call('" + key + "', ...args), _default)");
-        }
+        scripts.push("Zip.Backend = " + this.backendRpc.script);
         // Add all Vue components
         var getFileName = function (path) { return path.split("/")[path.split("/").length - 1]; };
         var minusExt = function (fileName) { return fileName.substr(0, fileName.lastIndexOf(".")); };

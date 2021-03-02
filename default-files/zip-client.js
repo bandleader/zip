@@ -32,19 +32,6 @@ Zip.Utils = {
     }
 }
 
-Zip.Backend = {
-    _call(method, ...args) {
-        const result = fetch("/api/" + method + "?args=" + encodeURIComponent(JSON.stringify(args)), {
-          method: "POST"
-        })
-        const jsonResult = result.then(x => x.json())
-        return jsonResult.then(json => {
-          if (json.err) throw "Server returned error: " + json.err
-          return json.result
-        })
-    }
-}
-
 const _zipGraphQuery = function() {
     const queryBuilderNode = (promise, path = "🌳") => {
         const subQueries = {}
