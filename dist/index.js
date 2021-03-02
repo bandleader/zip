@@ -500,6 +500,9 @@ var ZipRunner = /** @class */ (function () {
         this.backendRpc = quickRpc(this.backend, "/api/qrpc");
     };
     ZipRunner.prototype.handleRequest = function (path, req, resp) {
+        // console.log(path)
+        if (!resp.json)
+            resp.json = function (obj) { return resp.send(JSON.stringify(obj)); };
         /*const tryWith = (msgPrefix: string, fn: Function) => {
           try {
             const result = fn()
@@ -515,13 +518,13 @@ var ZipRunner = /** @class */ (function () {
         else if (path == "/_zipver") {
             resp.send(require('../package.json').version);
         }
-        else if (path.startsWith("/api/")) {
-            // REST API -- not currently implemented because we have to think about strings
-            var method = path.split("/")[2];
-            throw "REST API not yet implemented";
-        }
         else if (path === "/api/qrpc") {
             this.backendRpc.handler(req, resp);
+        }
+        else if (path.startsWith("/api/")) {
+            // REST API -- not currently implemented because we have to think about arg types being only string...
+            var method = path.split("/")[2];
+            throw "REST API not yet implemented";
         }
         else {
             resp.send(this.getFrontendIndex());

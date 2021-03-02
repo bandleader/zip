@@ -78,6 +78,8 @@ export default class ZipRunner {
  
   handleRequest(path: string, req: any, resp: any) {
     // console.log(path)
+    if (!resp.json) resp.json = (obj: any) => resp.send(JSON.stringify(obj))
+    
     const sendErr = (err: any) => resp.send({ err: String(err) })
     /*const tryWith = (msgPrefix: string, fn: Function) => {
       try {
@@ -93,12 +95,12 @@ export default class ZipRunner {
       resp.send("404 Not Found")
     } else if (path == "/_zipver") {
       resp.send(require('../package.json').version)
-    } else if (path.startsWith("/api/")) {
-      // REST API -- not currently implemented because we have to think about strings
-      const method = path.split("/")[2]
-      throw "REST API not yet implemented"
     } else if (path === "/api/qrpc") {
       this.backendRpc.handler(req, resp)
+    } else if (path.startsWith("/api/")) {
+      // REST API -- not currently implemented because we have to think about arg types being only string...
+      const method = path.split("/")[2]
+      throw "REST API not yet implemented"
     } else {
       resp.send(this.getFrontendIndex())
     }
