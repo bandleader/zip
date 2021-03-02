@@ -578,20 +578,26 @@ function quickRpc(backend, endpointUrl) {
                     context = { req: req, res: res, method: method };
                     _a.label = 1;
                 case 1:
-                    _a.trys.push([1, 3, , 4]);
-                    if (typeof backend[method] !== 'function')
-                        throw "Method '" + method + "' does not exist";
+                    _a.trys.push([1, 6, , 7]);
+                    if (!req.query.expose) return [3 /*break*/, 2];
+                    res.send("window." + req.query.expose + " = " + script);
+                    return [3 /*break*/, 5];
+                case 2:
+                    if (!(typeof backend[method] !== 'function')) return [3 /*break*/, 3];
+                    throw "Method '" + method + "' does not exist";
+                case 3:
                     args = JSON.parse(req.query.args);
                     return [4 /*yield*/, backend[method].apply(context, args)];
-                case 2:
+                case 4:
                     result = _a.sent();
                     res.json({ result: result });
-                    return [3 /*break*/, 4];
-                case 3:
+                    _a.label = 5;
+                case 5: return [3 /*break*/, 7];
+                case 6:
                     err_1 = _a.sent();
                     res.json({ err: err_1 });
-                    return [3 /*break*/, 4];
-                case 4: return [2 /*return*/];
+                    return [3 /*break*/, 7];
+                case 7: return [2 /*return*/];
             }
         });
     }); };

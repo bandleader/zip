@@ -193,10 +193,15 @@ export function quickRpc(backend: Record<string, Function>, endpointUrl = "/api"
     const method = req.query.method
     const context = { req, res, method }
     try {
-      if (typeof backend[method] !== 'function') throw `Method '${method}' does not exist`
-      const args = JSON.parse(req.query.args)
-      const result = await backend[method].apply(context, args)
-      res.json({result})
+      if (req.query.expose) {
+        res.send(`window.${req.query.expose} = ${script}`)
+      } else if (typeof backend[method] !== 'function') {
+        throw `Method '${method}' does not exist`
+      } else {
+        const args = JSON.parse(req.query.args)
+        const result = await backend[method].apply(context, args)
+        res.json({result})
+      }
     } catch (err) {
       res.json({err})
     }
