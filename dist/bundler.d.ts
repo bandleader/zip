@@ -1,7 +1,7 @@
 export declare class VueSfcs {
     static convVueModuleToInitGlobalCode(componentKey: string, jsModuleCode: string): string;
     static vueClassTransformerScript(): string;
-    static convVueSfcToJsModule(vueSfcCode: string, classTransformer?: string): string;
+    static convVueSfcToJsModule(vueSfcCode: string, classTransformer?: string, customMutationCode?: string): string;
 }
 export declare type InputModule = {
     codeString: string;

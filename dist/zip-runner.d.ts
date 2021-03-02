@@ -7,7 +7,7 @@ declare type ZipSite = {
     files: Dict<ZipFile>;
     basePath?: string;
     router?: {
-        mode?: string;
+        mode?: "history" | "hash";
     };
 };
 declare type ZipFile = {
@@ -31,4 +31,30 @@ export declare function quickRpc(backend: Record<string, Function>, endpointUrl?
         post: Function;
     }) => any;
 };
+declare type ZipFrontendOptions = {
+    basePath?: string;
+    router?: {
+        mode?: "history" | "hash";
+    };
+    siteName: string;
+};
+export declare class ZipFrontend {
+    files: {
+        path: string;
+        contents: string;
+    }[];
+    options: ZipFrontendOptions;
+    static fromMemory(files: {
+        path: string;
+        contents: string;
+    }[], options: ZipFrontendOptions): ZipFrontend;
+    _vueFiles(): {
+        autoRoute: string;
+        componentKey: string;
+        path: string;
+        contents: string;
+    }[];
+    _vueModules(): string[];
+    script(): string;
+}
 export {};

@@ -19,7 +19,7 @@ type ZipSite = {
   files: Dict<ZipFile>, 
   basePath?: string /*include slashes. default is "/" */,
   router?: {
-    mode?: string
+    mode?: "history"|"hash"
   }
 }
 type ZipFile = { data: string }
@@ -109,63 +109,9 @@ export default class ZipRunner {
   getFrontendScript() {
     const scripts: string[] = []
     scripts.push(this.getFile("zip-client.js"))
-
-    // Create RPC for backend methods
-    scripts.push("Zip.Backend = " + this.backendRpc.script)
-
-    // Add all Vue components
-    const getFileName = (path: string) => path.split("/")[path.split("/").length-1]
-    const minusExt = (fileName: string) => fileName.substr(0, fileName.lastIndexOf("."))
-    const vues = Object.keys(this.site.files).filter(x => x.endsWith(".vue")).map(path => { 
-      const autoRoute = path.startsWith('pages/') ? ('/'+minusExt(path.substr(6)).replace(/__/g, ':')) : null
-      return {
-        path, autoRoute,
-        componentKey: minusExt(autoRoute ? path : getFileName(path)).replace(/[^a-zA-Z0-9א-ת]+/g, "-"), 
-        contents: this.site.files[path].data 
-      }
-    })
-    scripts.push(...vues.map(v => Bundler.VueSfcs.convVueModuleToInitGlobalCode(v.componentKey, Bundler.VueSfcs.convVueSfcToJsModule(v.contents, Bundler.VueSfcs.vueClassTransformerScript()))))
-
-
-
-    // Set up frontend routes
-    const vuesPages = vues.filter(x => x.autoRoute)
-    scripts.push(`
-      const routes = [
-        { path: '/', component: window.vues['pages-Home'] || window.vues['pages-home'] },
-        ${vuesPages.map(v =>`{ path: '${v.autoRoute}', component: window.vues['${v.componentKey}'] }`).join(", ")}
-      ]
-      // Add special routes for components that declare one
-      Object.values(window.vues).forEach(comp => {
-        if (comp.route) { 
-          routes.push({ path: comp.route, component: comp })
-        }
-      })
-      const router = new VueRouter({
-        routes,
-        base: '${this.site.basePath || "/"}',
-        mode: '${this.site.router!.mode || 'history'}'
-      })`)
-    
-      // Call Vue
-    scripts.push(`
-      vueApp = new Vue({ 
-        el: '#app', 
-        router, 
-        data: { 
-          App: {
-            identity: {
-              showLogin() { alert("TODO") },
-              logout() { alert("TODO") },
-            }
-          }, 
-          siteName: \`${this.site.siteName}\`,
-          deviceState: { user: null },
-          navMenuItems: ${JSON.stringify(vuesPages.filter(x => x.path.substr(9,1) === x.path.substr(9, 1).toUpperCase()).map(x => ({url: '/' + x.componentKey, text: x.path.substr(9, x.path.length-9-4)})))},
-        },
-        created() {
-        }
-      })`)
+    scripts.push("Zip.Backend = " + this.backendRpc.script) // RPC for backend methods
+    const vueFiles = Object.keys(this.site.files).filter(x => x.endsWith(".vue")).map(path => ({ path, contents: this.site.files[path].data }))
+    scripts.push(ZipFrontend.fromMemory(vueFiles, this.site).script())
     return scripts.join("\n")
   }
  
@@ -212,4 +158,74 @@ export function quickRpc(backend: Record<string, Function>, endpointUrl = "/api"
   const setup = (expressApp: {post:Function}) => expressApp.post(endpointUrl, handler)
 
   return { script, handler, setup }
+}
+
+type ZipFrontendOptions = { basePath?: string, router?: { mode?: "history"|"hash" }, siteName: string }
+export class ZipFrontend {
+  files: { path: string, contents: string }[] = []
+  options: ZipFrontendOptions
+  static fromMemory(files: { path: string, contents: string }[], options: ZipFrontendOptions) {
+    const ret = new ZipFrontend()
+    ret.files = files
+    ret.options = options
+    return ret
+  }
+  _vueFiles() {
+    const getFileName = (path: string) => path.split("/")[path.split("/").length - 1]
+    const minusExt = (fileName: string) => fileName.substr(0, fileName.lastIndexOf("."))
+    return this.files.filter(f => f.path.endsWith(".vue")).map(f => {
+      const autoRoute = 
+        f.path === "pages/Home.vue" ? "/"
+        : f.path.startsWith('pages/') ? ('/' + minusExt(f.path.substr(6)).replace(/__/g, ':')) 
+        : null
+      const componentKey = minusExt(getFileName(f.path)).replace(/[^a-zA-Z0-9א-ת]+/g, "-")
+      return { ...f, autoRoute, componentKey }
+    })
+  }
+  _vueModules() {
+    return this._vueFiles().map(vueFile => {
+      // Provide a default component name
+      let mutationCode = `exp.name = exp.name || ${JSON.stringify(vueFile.componentKey)}\n`
+      // Provide a default 'route' options key (feel free to override)
+      if (vueFile.autoRoute) mutationCode += `exp.route = exp.route || ${JSON.stringify(vueFile.autoRoute)}\n`
+      
+      return Bundler.VueSfcs.convVueSfcToJsModule(vueFile.contents, Bundler.VueSfcs.vueClassTransformerScript(), mutationCode)
+    })
+  }
+  script() {
+    const out: string[] = []
+    const vueModules = this._vueModules()
+    out.push(`const vues = [${vueModules.map(vm => Bundler.SimpleBundler.moduleCodeToIife(vm)).join(", ")}]`)
+    // Register the components globally
+    out.push("const registerGlobally = x => Vue.component(x.name, x)")
+    out.push("vues.forEach(registerGlobally)")
+    // Set up routes and call VueRouter
+    out.push("const routes = vues.filter(v => v.route).map((v, i) => ({ path: v.route, component: vues[i] }))")
+    out.push(`console.log(vues.map(v=>v.name));const router = new VueRouter({
+      routes,
+      base: '${this.options.basePath || "/"}',
+      mode: '${this.options.router?.mode || 'history'}'
+    })`)
+    // Call Vue
+    out.push(`
+    const vueApp = new Vue({ 
+      el: '#app', 
+      router, 
+      data: { 
+        App: {
+          identity: {
+            showLogin() { alert("TODO") },
+            logout() { alert("TODO") },
+          }
+        }, 
+        siteName: ${JSON.stringify(this.options.siteName)},
+        navMenuItems: vues.filter(v => v.menuText).map(v => ({ url: v.route, text: v.menuText })),
+        deviceState: { user: null },
+      },
+      created() {
+      }
+    })`)
+    // return ";(function(){\n" + out.join("\n") + "\n})()"
+    return out.join("\n")
+  }
 }

@@ -81,7 +81,8 @@ var VueSfcs = /** @class */ (function () {
         // In the future we should just include a Zip client JS file which should already be transpiled
         return "\n            (function() {\n                var __assign = function() { \n                    __assign = Object.assign || function __assign(t) {\n                        for (var s, i = 1, n = arguments.length; i < n; i++) {\n                            s = arguments[i];\n                            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p)) t[p] = s[p];\n                        }\n                        return t;\n                    };\n                    return __assign.apply(this, arguments);\n                }\n                return " + vueClassComponent + "\n            })()\n        ";
     };
-    VueSfcs.convVueSfcToJsModule = function (vueSfcCode, classTransformer) {
+    VueSfcs.convVueSfcToJsModule = function (vueSfcCode, classTransformer, customMutationCode) {
+        if (customMutationCode === void 0) { customMutationCode = ""; }
         var getTag = function (tag, text) {
             var start = text.indexOf('>', text.indexOf("<" + tag)) + 1;
             var end = text.lastIndexOf("</" + tag + ">");
@@ -97,7 +98,7 @@ var VueSfcs = /** @class */ (function () {
             scriptIife = "(" + classTransformer + ")(" + scriptIife + ")";
         var template = getTag("template", vueSfcCode);
         var css = getTag("style", vueSfcCode);
-        return "\n            let exp = " + scriptIife + ";\n            exp.template = " + JSON.stringify(template) + "\n            const addTag = (where, tagName, attrs) => {           \n                const el = document.createElement(tagName)\n                for (const k of Object.keys(attrs)) el[k] = attrs[k]\n                where.appendChild(el)\n            }\n            const addCss = css => addTag(document.head, \"style\", {type: 'text/css', innerHTML: css})                  \n            let alreadyAddedCss = false\n            // TODO remove too\n            const oldCreated = exp.created\n            exp.created = function () {\n                if (!alreadyAddedCss) addCss(" + JSON.stringify(css) + ")\n                alreadyAddedCss = true\n                if (oldCreated) oldCreated.call(this)\n            }\n            export default exp\n        ";
+        return "\n            let exp = " + scriptIife + ";\n            exp.template = " + JSON.stringify(template) + "\n            const addTag = (where, tagName, attrs) => {           \n                const el = document.createElement(tagName)\n                for (const k of Object.keys(attrs)) el[k] = attrs[k]\n                where.appendChild(el)\n            }\n            const addCss = css => addTag(document.head, \"style\", {type: 'text/css', innerHTML: css})                  \n            let alreadyAddedCss = false\n            // TODO remove too\n            const oldCreated = exp.created\n            exp.created = function () {\n                if (!alreadyAddedCss) addCss(" + JSON.stringify(css) + ")\n                alreadyAddedCss = true\n                if (oldCreated) oldCreated.call(this)\n            }\n            " + customMutationCode + "\n            export default exp\n        ";
     };
     return VueSfcs;
 }());
@@ -277,7 +278,8 @@ var SimpleBundler = /** @class */ (function () {
     SimpleBundler.moduleCodeToIife = function (jsCode, useDefaultExportIfAny, allowRequire) {
         if (useDefaultExportIfAny === void 0) { useDefaultExportIfAny = true; }
         if (allowRequire === void 0) { allowRequire = false; }
-        return "(function() {\n      const tempModule = { exports: {} }\n      const tempDisableRequire = function() { throw \"Error: require() cannot be called when using 'moduleCodeToIife'\" }\n      const tempFactory = " + SimpleBundler.moduleCodeToFactoryFunc(jsCode) + "\n      tempFactory(tempModule, tempModule.exports, " + (allowRequire ? 'require' : 'tempDisableRequire') + ")\n      return " + (useDefaultExportIfAny ? 'tempModule.exports.default || ' : '') + "tempModule.exports\n    })()";
+        var require = allowRequire ? "require" : "function() { throw \"Error: require() cannot be called when using 'moduleCodeToIife'\" }";
+        return "(function() {\n      const tempModule = { exports: {} }\n      const tempFactory = " + SimpleBundler.moduleCodeToFactoryFunc(jsCode) + "\n      tempFactory(tempModule, tempModule.exports, " + require + ")\n      return " + (useDefaultExportIfAny ? 'tempModule.exports.default || ' : '') + "tempModule.exports\n    })()";
     };
     SimpleBundler._moduleLoader = function moduleLoader(factories) {
         var modules = {};
@@ -530,25 +532,9 @@ var ZipRunner = /** @class */ (function () {
         var _this = this;
         var scripts = [];
         scripts.push(this.getFile("zip-client.js"));
-        // Create RPC for backend methods
-        scripts.push("Zip.Backend = " + this.backendRpc.script);
-        // Add all Vue components
-        var getFileName = function (path) { return path.split("/")[path.split("/").length - 1]; };
-        var minusExt = function (fileName) { return fileName.substr(0, fileName.lastIndexOf(".")); };
-        var vues = Object.keys(this.site.files).filter(function (x) { return x.endsWith(".vue"); }).map(function (path) {
-            var autoRoute = path.startsWith('pages/') ? ('/' + minusExt(path.substr(6)).replace(/__/g, ':')) : null;
-            return {
-                path: path, autoRoute: autoRoute,
-                componentKey: minusExt(autoRoute ? path : getFileName(path)).replace(/[^a-zA-Z0-9א-ת]+/g, "-"),
-                contents: _this.site.files[path].data
-            };
-        });
-        scripts.push.apply(scripts, vues.map(function (v) { return Bundler.VueSfcs.convVueModuleToInitGlobalCode(v.componentKey, Bundler.VueSfcs.convVueSfcToJsModule(v.contents, Bundler.VueSfcs.vueClassTransformerScript())); }));
-        // Set up frontend routes
-        var vuesPages = vues.filter(function (x) { return x.autoRoute; });
-        scripts.push("\n      const routes = [\n        { path: '/', component: window.vues['pages-Home'] || window.vues['pages-home'] },\n        " + vuesPages.map(function (v) { return "{ path: '" + v.autoRoute + "', component: window.vues['" + v.componentKey + "'] }"; }).join(", ") + "\n      ]\n      // Add special routes for components that declare one\n      Object.values(window.vues).forEach(comp => {\n        if (comp.route) { \n          routes.push({ path: comp.route, component: comp })\n        }\n      })\n      const router = new VueRouter({\n        routes,\n        base: '" + (this.site.basePath || "/") + "',\n        mode: '" + (this.site.router.mode || 'history') + "'\n      })");
-        // Call Vue
-        scripts.push("\n      vueApp = new Vue({ \n        el: '#app', \n        router, \n        data: { \n          App: {\n            identity: {\n              showLogin() { alert(\"TODO\") },\n              logout() { alert(\"TODO\") },\n            }\n          }, \n          siteName: `" + this.site.siteName + "`,\n          deviceState: { user: null },\n          navMenuItems: " + JSON.stringify(vuesPages.filter(function (x) { return x.path.substr(9, 1) === x.path.substr(9, 1).toUpperCase(); }).map(function (x) { return ({ url: '/' + x.componentKey, text: x.path.substr(9, x.path.length - 9 - 4) }); })) + ",\n        },\n        created() {\n        }\n      })");
+        scripts.push("Zip.Backend = " + this.backendRpc.script); // RPC for backend methods
+        var vueFiles = Object.keys(this.site.files).filter(function (x) { return x.endsWith(".vue"); }).map(function (path) { return ({ path: path, contents: _this.site.files[path].data }); });
+        scripts.push(ZipFrontend.fromMemory(vueFiles, this.site).script());
         return scripts.join("\n");
     };
     return ZipRunner;
@@ -603,6 +589,55 @@ function quickRpc(backend, endpointUrl) {
     var setup = function (expressApp) { return expressApp.post(endpointUrl, handler); };
     return { script: script, handler: handler, setup: setup };
 }
+var ZipFrontend = /** @class */ (function () {
+    function ZipFrontend() {
+        this.files = [];
+    }
+    ZipFrontend.fromMemory = function (files, options) {
+        var ret = new ZipFrontend();
+        ret.files = files;
+        ret.options = options;
+        return ret;
+    };
+    ZipFrontend.prototype._vueFiles = function () {
+        var getFileName = function (path) { return path.split("/")[path.split("/").length - 1]; };
+        var minusExt = function (fileName) { return fileName.substr(0, fileName.lastIndexOf(".")); };
+        return this.files.filter(function (f) { return f.path.endsWith(".vue"); }).map(function (f) {
+            var autoRoute = f.path === "pages/Home.vue" ? "/"
+                : f.path.startsWith('pages/') ? ('/' + minusExt(f.path.substr(6)).replace(/__/g, ':'))
+                    : null;
+            var componentKey = minusExt(getFileName(f.path)).replace(/[^a-zA-Z0-9א-ת]+/g, "-");
+            return __assign(__assign({}, f), { autoRoute: autoRoute, componentKey: componentKey });
+        });
+    };
+    ZipFrontend.prototype._vueModules = function () {
+        return this._vueFiles().map(function (vueFile) {
+            // Provide a default component name
+            var mutationCode = "exp.name = exp.name || " + JSON.stringify(vueFile.componentKey) + "\n";
+            // Provide a default 'route' options key (feel free to override)
+            if (vueFile.autoRoute)
+                mutationCode += "exp.route = exp.route || " + JSON.stringify(vueFile.autoRoute) + "\n";
+            return Bundler.VueSfcs.convVueSfcToJsModule(vueFile.contents, Bundler.VueSfcs.vueClassTransformerScript(), mutationCode);
+        });
+    };
+    ZipFrontend.prototype.script = function () {
+        var _a;
+        var out = [];
+        var vueModules = this._vueModules();
+        out.push("const vues = [" + vueModules.map(function (vm) { return Bundler.SimpleBundler.moduleCodeToIife(vm); }).join(", ") + "]");
+        // Register the components globally
+        out.push("const registerGlobally = x => Vue.component(x.name, x)");
+        out.push("vues.forEach(registerGlobally)");
+        // Set up routes and call VueRouter
+        out.push("const routes = vues.filter(v => v.route).map((v, i) => ({ path: v.route, component: vues[i] }))");
+        out.push("console.log(vues.map(v=>v.name));const router = new VueRouter({\n      routes,\n      base: '" + (this.options.basePath || "/") + "',\n      mode: '" + (((_a = this.options.router) === null || _a === void 0 ? void 0 : _a.mode) || 'history') + "'\n    })");
+        // Call Vue
+        out.push("\n    const vueApp = new Vue({ \n      el: '#app', \n      router, \n      data: { \n        App: {\n          identity: {\n            showLogin() { alert(\"TODO\") },\n            logout() { alert(\"TODO\") },\n          }\n        }, \n        siteName: " + JSON.stringify(this.options.siteName) + ",\n        navMenuItems: vues.filter(v => v.menuText).map(v => ({ url: v.route, text: v.menuText })),\n        deviceState: { user: null },\n      },\n      created() {\n      }\n    })");
+        // return ";(function(){\n" + out.join("\n") + "\n})()"
+        return out.join("\n");
+    };
+    return ZipFrontend;
+}());
 
 export default ZipRunner;
-export { Bundler, quickRpc };
+export { Bundler, ZipFrontend, quickRpc };

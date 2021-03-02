@@ -27,7 +27,7 @@ export class VueSfcs {
             })()
         `
     }
-    static convVueSfcToJsModule(vueSfcCode: string, classTransformer?: string) {
+    static convVueSfcToJsModule(vueSfcCode: string, classTransformer?: string, customMutationCode = "") {
         const getTag = (tag: string, text: string) => {
         const start = text.indexOf('>', text.indexOf(`<${tag}`,)) + 1
         const end = text.lastIndexOf(`</${tag}>`)
@@ -57,6 +57,7 @@ export class VueSfcs {
                 alreadyAddedCss = true
                 if (oldCreated) oldCreated.call(this)
             }
+            ${customMutationCode}
             export default exp
         `
     }
@@ -258,11 +259,11 @@ export class SimpleBundler {
     return jsCode
   }
   static moduleCodeToIife(jsCode: string, useDefaultExportIfAny = true, allowRequire = false) {
+    const require = allowRequire ? "require" : `function() { throw "Error: require() cannot be called when using 'moduleCodeToIife'" }`
     return `(function() {
       const tempModule = { exports: {} }
-      const tempDisableRequire = function() { throw "Error: require() cannot be called when using 'moduleCodeToIife'" }
       const tempFactory = ${SimpleBundler.moduleCodeToFactoryFunc(jsCode)}
-      tempFactory(tempModule, tempModule.exports, ${allowRequire ? 'require' : 'tempDisableRequire'})
+      tempFactory(tempModule, tempModule.exports, ${require})
       return ${useDefaultExportIfAny ? 'tempModule.exports.default || ' : ''}tempModule.exports
     })()`
   }  
