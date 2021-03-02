@@ -1,5 +1,10 @@
 .data/
 
+# rollup.js default build output
+# now disabled because we want to npm install via github
+# dist/
+
+
 
 # Created by https://www.gitignore.io/api/vue,node,visualstudiocode,visualstudio
 # Edit at https://www.gitignore.io/?templates=vue,node,visualstudiocode,visualstudio
@@ -81,9 +86,6 @@ typings/
 
 # nuxt.js build output
 .nuxt
-
-# rollup.js default build output
-dist/
 
 # Uncomment the public line if your project uses Gatsby
 # https://nextjs.org/blog/next-9-1#public-directory-support

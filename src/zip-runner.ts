@@ -7,8 +7,8 @@
 //      \|_______|\|__|\|__|   
 //                             
 
-import * as Bundler2 from './bundler'
-export const Bundler = Bundler2
+import * as _Bundler from './bundler'
+export const Bundler = _Bundler
 import GraphQueryRunner from './graph'
 
 
@@ -182,4 +182,42 @@ export default class ZipRunner {
     return scripts.join("\n")
   }
  
+}
+
+export function quickRpc(backend: Record<string, Function>, endpointUrl = "/api") {
+  const endpointUrlString = endpointUrl + (endpointUrl.includes("?") ? "&" : "?")
+  const indent = (text: string, spaces = 2) => text.split("\n").map(x => " ".repeat(spaces) + x).join("\n")
+  //.replace(/\:method/g, '" + method + "')
+  let script = 
+`const _call = (method, ...args) => {
+  const result = fetch(${JSON.stringify(endpointUrlString)} + "method=" + method + "&args=" + encodeURIComponent(JSON.stringify(args)), { method: "POST" })
+  const jsonResult = result.then(x => x.json())
+  return jsonResult.then(json => {
+    if (json.err) throw "Server returned error: " + json.err
+    return json.result
+  })
+}\n`
+  script += "return {\n" + 
+    Object.keys(backend).map(key => `  ${key}(...args) { return _call('${key}', ...args) }`)
+    .join(", \n") + "\n}"
+  
+  // Wrap in IIFE
+  script = `(function() {\n${indent(script)}\n})()`
+
+  const handler = async (req: any, res: any) => {
+    const method = req.query.method
+    const context = { req, res, method }
+    try {
+      if (typeof backend[method] !== 'function') throw `Method '${method}' does not exist`
+      const args = JSON.parse(req.query.args)
+      const result = await backend[method].apply(context, args)
+      res.json({result})
+    } catch (err) {
+      res.json({err})
+    }
+  }
+
+  const setup = (expressApp: {post:Function}) => expressApp.post(endpointUrl, handler)
+
+  return { script, handler, setup }
 }

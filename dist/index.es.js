@@ -312,7 +312,7 @@ function evalEx(exprCode, customScope) {
     return Function.apply(void 0, __spreadArrays(Object.keys(customScope), ["return (" + exprCode + ")"])).apply(void 0, Object.values(customScope));
 }
 
-var Bundler2 = /*#__PURE__*/Object.freeze({
+var _Bundler = /*#__PURE__*/Object.freeze({
     __proto__: null,
     VueSfcs: VueSfcs,
     SimpleBundler: SimpleBundler,
@@ -458,7 +458,7 @@ var GraphQueryRunner = /** @class */ (function () {
 }());
 
 //   ________  ___  ________   
-var Bundler = Bundler2;
+var Bundler = _Bundler;
 var ZipRunner = /** @class */ (function () {
     function ZipRunner(site) {
         this.site = site;
@@ -570,6 +570,50 @@ var ZipRunner = /** @class */ (function () {
     };
     return ZipRunner;
 }());
+function quickRpc(backend, endpointUrl) {
+    var _this = this;
+    if (endpointUrl === void 0) { endpointUrl = "/api"; }
+    var endpointUrlString = endpointUrl + (endpointUrl.includes("?") ? "&" : "?");
+    var indent = function (text, spaces) {
+        if (spaces === void 0) { spaces = 2; }
+        return text.split("\n").map(function (x) { return " ".repeat(spaces) + x; }).join("\n");
+    };
+    //.replace(/\:method/g, '" + method + "')
+    var script = "const _call = (method, ...args) => {\n  const result = fetch(" + JSON.stringify(endpointUrlString) + " + \"method=\" + method + \"&args=\" + encodeURIComponent(JSON.stringify(args)), { method: \"POST\" })\n  const jsonResult = result.then(x => x.json())\n  return jsonResult.then(json => {\n    if (json.err) throw \"Server returned error: \" + json.err\n    return json.result\n  })\n}\n";
+    script += "return {\n" +
+        Object.keys(backend).map(function (key) { return "  " + key + "(...args) { return _call('" + key + "', ...args) }"; })
+            .join(", \n") + "\n}";
+    // Wrap in IIFE
+    script = "(function() {\n" + indent(script) + "\n})()";
+    var handler = function (req, res) { return __awaiter(_this, void 0, void 0, function () {
+        var method, context, args, result, err_1;
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0:
+                    method = req.query.method;
+                    context = { req: req, res: res, method: method };
+                    _a.label = 1;
+                case 1:
+                    _a.trys.push([1, 3, , 4]);
+                    if (typeof backend[method] !== 'function')
+                        throw "Method '" + method + "' does not exist";
+                    args = JSON.parse(req.query.args);
+                    return [4 /*yield*/, backend[method].apply(context, args)];
+                case 2:
+                    result = _a.sent();
+                    res.json({ result: result });
+                    return [3 /*break*/, 4];
+                case 3:
+                    err_1 = _a.sent();
+                    res.json({ err: err_1 });
+                    return [3 /*break*/, 4];
+                case 4: return [2 /*return*/];
+            }
+        });
+    }); };
+    var setup = function (expressApp) { return expressApp.post(endpointUrl, handler); };
+    return { script: script, handler: handler, setup: setup };
+}
 
 export default ZipRunner;
-export { Bundler };
+export { Bundler, quickRpc };
