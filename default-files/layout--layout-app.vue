@@ -33,7 +33,7 @@
       <slot />
     </main>
     <footer style="padding: 1em; margin-top: 1em; background: #444" class="text-light">
-      <h5><a href="/" class="text-light">© {{$root.siteBrand}} 2020</a></h5>
+      <h5><router-link to="/" class="text-light">© {{$root.siteBrand}} 2020</router-link></h5>
       <p class="text-muted">Another great thing made with Zip</p>
       <p v-if="$root.deviceState.user">Logged in as <b>{{$root.deviceState.user.name || 'Anonymous'}}</b> -- <a href="javascript:void(0)" @click="$root.App.identity.logout">log out</a></p>
       <p v-else><a href="javascript:void(0)" @click="$root.App.identity.showLogin">Log in</a></p>
