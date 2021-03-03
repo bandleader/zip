@@ -20,12 +20,35 @@ const cache = (factory, immed) => {
   return get
 }
 
-const curContext = cache(first => {
-  if (!first) console.info(new Date().toLocaleTimeString(), "File change detected; reloading Zip site.")
-  return require('./common.js').getZipContext()
-}, true)
+function throttled({ms, delay}, fn) {
+  let lastCall = 0, timeout = null
+  const attempt = (alreadyDelayed, ...args) => {
+    // console.log("Attempt", alreadyDelayed, !!timeout)
+    const now = () => { lastCall = Date.now(); timeout = null; fn(...args) }
+    const timeSinceLastCall = Date.now() - lastCall
+    // It should run in [delay], unless it already ran recently, in which case 
+    let timeToWait = alreadyDelayed ? 0 : (delay||0)
+    timeToWait = Math.max(timeToWait, (lastCall + (ms||0)) - Date.now())
+    // console.log(timeToWait)
+    if (timeToWait <= 0) now()
+    else if (!timeout) timeout = setTimeout(() => attempt(true, ...args), timeToWait + 5)
+  }
+  return (...args) => attempt(false, ...args)
+}
+
+const curContext = cache(first => require('./common.js').getZipContext(), true)
+const throttledRecompute = throttled({delay: 250, ms: 150}, () => {
+  console.info(new Date().toLocaleTimeString(), `File change detected; reloading Zip site.`)
+  curContext.recomputeSoon()
+})
 const watchDir = dir => {
-  fs.watch(dir, {}, () => curContext.recomputeSoon())
+  if (path.basename(dir) === "node_modules") return;
+  if (path.basename(dir).startsWith(".") ) return; // Ignore hidden dirs like .git, .bin, .cache, .idea
+  fs.watch(dir, {}, (ev, filename,c) => {
+    if ([".git"].includes(filename)) return; // it registers a directory change whenever something
+    // console.log(ev, filename)
+    throttledRecompute()
+  })
   // Also watch subdirectories
   for (const subdir of fs.readdirSync(dir)) {
     const subdirPath = path.join(dir, subdir)
