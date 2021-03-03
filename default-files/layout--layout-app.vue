@@ -29,7 +29,7 @@
         </nav>
       </div>
     </header>
-    <main class="container" style="min-height: calc(100vh - 221px); margin: 2em 0">
+    <main class="container" style="min-height: calc(100vh - 248px); margin: 2em 0">
       <slot />
     </main>
     <footer style="padding: 1em; margin-top: 1em; background: #444" class="text-light">
