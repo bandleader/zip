@@ -98,7 +98,10 @@ Vue.component('async-value', {
         error: null,
         value: null
       })
-      this.promise.then(x => {ret.resolved = true; ret.value = x}, err => ret.error = err)
+      let promise = this.promise
+      if (typeof promise === 'function') promise = promise()
+      if (typeof promise !== 'object' || typeof promise.then !== 'function') throw "<async-value>: prop 'promise' must be a Promise/PromiseLike or a function returning one; got: " + typeof promise
+      promise.then(x => {ret.resolved = true; ret.value = x}, err => ret.error = err)
       return ret
     }
   },
