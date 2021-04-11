@@ -45,7 +45,7 @@ function getZipContext() {
     }
     for (const k in zipConfig) site[k] = zipConfig[k]
 
-    const runner = new ZipRunner(site, "http://localhost:8005")
+    const runner = new ZipRunner.default(site, "http://localhost:8005")
     return {
         root,
         packageJson,
