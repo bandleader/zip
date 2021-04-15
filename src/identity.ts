@@ -6,7 +6,6 @@ type LoginnerOptions<T> = {
     sendCode: (acct: T, code: string) => void
 }
 
-<<<<<<< HEAD
 function Loginner<T extends { email: string, id?: string }, TMe = {}>(_opts: {
     // TODO produce a middleware, maybe put account in req.acct or at least req.getAcct(), maybe take a function as a continuing middleware?
     // Remember this is really going to be used by the ZipRpc middleware etc. So it can just look at req.acct or something, or pass on req?
@@ -22,20 +21,13 @@ function Loginner<T extends { email: string, id?: string }, TMe = {}>(_opts: {
         },
         me: async () => ({} as any)
     }
-=======
-function Loginner<T>(sendCode: (email: string, code: string)=>Promise<void>) {
->>>>>>> 6625910b22f05c0a47c4c0a57b622a32e6aaeb5d
     const db = { //TODO persist in and out
         users: [] as T[],
         codes: [] as {code: string, acctId: string, expiry: number}[],
         sessions: [] as {token: string, acctId: string, expiry: number}[]
     }
     let pruned = <T extends { expiry: number }>(list: T[]) => list.filter(x => !passed(x.expiry))
-<<<<<<< HEAD
     const acctByEmail =  (email: string) => db.users.find(x => x.email === email)
-=======
-    const acctByEmail =  (email: string) => db.sessions.find(x => x.email === email)
->>>>>>> 6625910b22f05c0a47c4c0a57b622a32e6aaeb5d
     const verifyToken = (token: string) => {
         db.sessions = pruned(db.sessions)
         const find = db.sessions.find(x => x.token === token)
@@ -48,11 +40,7 @@ function Loginner<T>(sendCode: (email: string, code: string)=>Promise<void>) {
             const code = randomId(10, "0123456789")
             db.codes.push({ code, acctId: find.id, expiry: inMinutes(5) })
             // TODO send code
-<<<<<<< HEAD
             await opts.sendCode(email, code)
-=======
-            await sendCode(email, code)
->>>>>>> 6625910b22f05c0a47c4c0a57b622a32e6aaeb5d
             return { type: "code_sent" }
         },
         async loginWithCode(code: string) {
@@ -62,7 +50,6 @@ function Loginner<T>(sendCode: (email: string, code: string)=>Promise<void>) {
             find.expiry = 0 // so it cannot be used again
             const token = randomId(32), acctId = find.acctId  
             db.sessions.push({ token, acctId, expiry: inMinutes(24*60) })
-<<<<<<< HEAD
             return { token }
         },
         async me(token: string) {
@@ -72,12 +59,4 @@ function Loginner<T>(sendCode: (email: string, code: string)=>Promise<void>) {
         },
     }
     return { api, verifyToken }
-=======
-            return { token, acctId }
-        }
-    }
-    return { api, verifyToken }
-}
-
->>>>>>> 6625910b22f05c0a47c4c0a57b622a32e6aaeb5d
 }
