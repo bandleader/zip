@@ -6,7 +6,9 @@ type LoginnerOptions<T> = {
     sendCode: (acct: T, code: string) => void
 }
 
-function Loginner<T extends { email: string, id?: string }, TMe = undefined>(_opts: {
+function Loginner<T extends { email: string, id?: string }, TMe = {}>(_opts: {
+    // TODO produce a middleware, maybe put account in req.acct or at least req.getAcct(), maybe take a function as a continuing middleware?
+    // Remember this is really going to be used by the ZipRpc middleware etc. So it can just look at req.acct or something, or pass on req?
     sendCode?: (email: string, code: string) => Promise<void>,
     newAcct?: (email: string) => T,
     me?: (acctId: string) => Promise<TMe>
@@ -17,7 +19,7 @@ function Loginner<T extends { email: string, id?: string }, TMe = undefined>(_op
             const obj = _opts.newAcct ? _opts.newAcct(email) : { email, id: undefined as string|undefined }
             return { ...obj, id: obj.id || randomId() } as any
         },
-        me: async () => undefined
+        me: async () => ({} as any)
     }
     const db = { //TODO persist in and out
         users: [] as T[],
