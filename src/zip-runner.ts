@@ -10,6 +10,7 @@
 import * as _Bundler from './bundler'
 export const Bundler = _Bundler
 import GraphQueryRunner from './graph'
+import * as Identity from './identity'
 
 
 type Dict<T> = Record<string, T>
@@ -37,6 +38,8 @@ function clearableScheduler() {
 export default class ZipRunner {
   backend: any
   backendRpc: ReturnType<typeof quickRpc>
+  auth = Identity.Loginner()
+  authRpc = quickRpc(this.auth.api, "/api/auth")
 
   constructor(public site: ZipSite) { 
     site.siteBrand = site.siteBrand || site.siteName
@@ -96,6 +99,8 @@ export default class ZipRunner {
       resp.send(require('../package.json').version)
     } else if (path === "/api/qrpc") {
       this.backendRpc.handler(req, resp)
+    } else if (path === "/api/auth") {
+      this.authRpc.handler(req, resp)
     } else if (path.startsWith("/api/")) {
       // REST API -- not currently implemented because we have to think about arg types being only string...
       const method = path.split("/")[2]
@@ -109,6 +114,7 @@ export default class ZipRunner {
     const scripts: string[] = []
     scripts.push(this.getFile("zip-client.js"))
     scripts.push("Zip.Backend = " + this.backendRpc.script) // RPC for backend methods
+    scripts.push("Zip.ZipAuth = " + this.authRpc.script) // RPC for auth methods
     const vueFiles = Object.keys(this.site.files).filter(x => x.endsWith(".vue")).map(path => ({ path, contents: this.site.files[path].data }))
     scripts.push(ZipFrontend.fromMemory(vueFiles, {...this.site, siteBrand: this.site.siteBrand! /* we assigned it in the constructor */ }).script())
     return scripts.join("\n")

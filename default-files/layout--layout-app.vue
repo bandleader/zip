@@ -18,13 +18,14 @@
               <input class="form-control mr-sm-2" type="text" placeholder="Search">
               <button class="btn btn-secondary my-2 my-sm-0" type="submit">Search</button>
             </form>-->
-            <button class="btn btn-primary" v-if="!$root.deviceState.user" @click="$root.App.identity.showLogin">Log in</button>
-            <span class="d-inline-block text-right" style="font-size: 1.5em" v-else>
+            <login-section />
+            <!-- <button class="btn btn-primary" v-if="!$root.deviceState.user" @click="$root.App.identity.showLogin">Log in</button> -->
+            <!-- <span class="d-inline-block text-right" style="font-size: 1.5em" v-else>
               <i class="fa fa-user-circle" style="font-size: 1.2em"></i>
               <b>{{$root.deviceState.user.name || 'Anonymous'}}</b>
               <br>
               <button type="button" class="btn btn-sm bg-white" style="opacity: 0.7" href="javascript:void(0)" @click="$root.App.identity.logout">Log out</button>
-            </span>
+            </span> -->
           </div>
         </nav>
       </div>
