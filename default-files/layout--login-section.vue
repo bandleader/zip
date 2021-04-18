@@ -11,6 +11,10 @@
 </template>
 
 <script>
+// TODO Support avatarUrl
+// TODO Perhaps cache acct in localStorage for next page run
+// TODO Perhaps store acct in root.me (with Vue.set I think? Might require Vue.observable to be observable)
+
 const tokenLsKey = "zipAuthToken" 
 export default {
     data: () => ({
