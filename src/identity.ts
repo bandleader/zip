@@ -1,12 +1,8 @@
-import { createHash } from "crypto"
+import * as Crypto from "crypto"
 
 const randomId = (length = 10, alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789") => Array.from(Array(length)).map(() => alphabet[Math.trunc(Math.random() * alphabet.length)]).join("")
 const inMinutes = (mins: number) => Date.now() + (mins*60*1000)
 const passed = (timestamp: number) => timestamp < Date.now()
-
-type LoginnerOptions<T> = {
-    sendCode: (acct: T, code: string) => void
-}
 
 export function Loginner<T extends { email: string, id?: string, passwordHash?: string }, TMe = {}>(_opts: {
     sendCode?: (email: string, code: string) => Promise<void>,
@@ -22,8 +18,8 @@ export function Loginner<T extends { email: string, id?: string, passwordHash?: 
             const obj = _opts.newAcct ? await (_opts.newAcct(email)) : { email, id: undefined as string|undefined, firstName: email.split("@")[0] }
             return { ...obj, id: obj.id || randomId() } as any
         },
-        me: async (acct: T) => ({ name: (acct as any).name, firstName: (acct as any).firstName, lastName: (acct as any).lastName, displayName: (acct as any).displayName } as any)
-        hashPassword: (raw: string) => sha6(raw),
+        me: async (acct: T) => ({ name: (acct as any).name, firstName: (acct as any).firstName, lastName: (acct as any).lastName, displayName: (acct as any).displayName } as any),
+        hashPassword: (raw: string) => Crypto.createHash('sha256').update(raw).digest('hex'),
     }
     const db = { //TODO persist in and out
         users: [] as T[],
