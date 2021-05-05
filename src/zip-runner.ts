@@ -57,8 +57,9 @@ export default class ZipRunner {
   getFrontendIndex() {
     let scriptsToInclude = this.getFrontendScript()
     let contents = this.getFile("index.html")
-    contents = contents.replace(/\{\{siteName\}\}/g, this.site.siteName)
-    contents = contents.replace(/\{\{siteBrand\}\}/g, this.site.siteBrand || this.site.siteName)
+    contents = contents.replace(/\{\%siteName\}/g, this.site.siteName)
+    contents = contents.replace(/\{\%siteBrand\}/g, this.site.siteBrand || this.site.siteName)
+    contents = contents.replace(/\{\%basePath\}/g, this.site.basePath)
     // Inject script
     contents = contents.replace(/<\/body>/g, `<script>${scriptsToInclude}</script></body>`)
     return contents
