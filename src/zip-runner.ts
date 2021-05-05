@@ -115,7 +115,7 @@ export default class ZipRunner {
     scripts.push(this.getFile("zip-client.js"))
     scripts.push("Zip.Backend = " + this.backendRpc.script) // RPC for backend methods
     scripts.push("Zip.ZipAuth = " + this.authRpc.script) // RPC for auth methods
-    const vueFiles = Object.keys(this.site.files).filter(x => x.endsWith(".vue")).reduce((a,c) => { a[c] = this.site.files[c].data; return  a }, {} as Record<string,string>)
+    const vueFiles = this.site.files // passing extra files won't hurt
     scripts.push(ZipFrontend.fromMemory(vueFiles, {...this.site, siteBrand: this.site.siteBrand! /* we assigned it in the constructor */ }).script())
     return scripts.join("\n")
   }
@@ -166,25 +166,24 @@ export function quickRpc(backend: Record<string, Function>, endpointUrl = "/api"
 }
 
 type ZipFrontendOptions = { basePath?: string, router?: { mode?: "history"|"hash" }, siteBrand: string }
-type BasicFileObj = Record<string, string>
 export class ZipFrontend {
-  files: BasicFileObj = {}
+  files: Dict<ZipFile> = {}
   options: ZipFrontendOptions
-  static fromMemory(files: BasicFileObj, options: ZipFrontendOptions) {
+  static fromMemory(files: Dict<ZipFile>, options: ZipFrontendOptions) {
     const ret = new ZipFrontend()
     ret.files = files
     ret.options = options
     return ret
   }
   static _filesFromDir(localPath: string, fs: any) {
-    const ret: Record<string, string> = {}
+    const ret: Dict<ZipFile> = {}
     for (const file of (fs.readdirSync(localPath) as string[])) {
         const path = `${localPath}/${file}`
         if (fs.statSync(path).isDirectory()) {
             const loadDir = ZipFrontend._filesFromDir(path, fs)
             for (const key in loadDir) ret[`${file}/${key}`] = loadDir[key]
         } else {
-            ret[file.replace(/--/g, "/")] = fs.readFileSync(path).toString()
+            ret[file.replace(/--/g, "/")] = { data: fs.readFileSync(path).toString() }
         }
     }
     return ret
@@ -193,7 +192,10 @@ export class ZipFrontend {
     const files = ZipFrontend._filesFromDir(path, fs)
     return ZipFrontend.fromMemory(files, options)
   }
-  _allFiles() { return Object.keys(this.files).map(path => ({ path, contents: this.files[path] })) }
+  _allFiles() { 
+    // Return as an array instead of an object
+    return Object.keys(this.files).map(path => ({ ...this.files[path], path })) 
+  }
   _vueFiles() {
     const getFileName = (path: string) => path.split("/")[path.split("/").length - 1]
     const minusExt = (fileName: string) => fileName.substr(0, fileName.lastIndexOf("."))
@@ -213,7 +215,7 @@ export class ZipFrontend {
       // Provide a default 'route' options key (feel free to override)
       if (vueFile.autoRoute) mutationCode += `exp.route = exp.route || ${JSON.stringify(vueFile.autoRoute)}\n`
       
-      return Bundler.VueSfcs.convVueSfcToJsModule(vueFile.contents, Bundler.VueSfcs.vueClassTransformerScript(), mutationCode)
+      return Bundler.VueSfcs.convVueSfcToJsModule(vueFile.data, Bundler.VueSfcs.vueClassTransformerScript(), mutationCode)
     })
   }
   script() {

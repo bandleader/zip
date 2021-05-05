@@ -2,6 +2,8 @@
 
 Object.defineProperty(exports, '__esModule', { value: true });
 
+var Crypto = require('crypto');
+
 /*! *****************************************************************************
 Copyright (c) Microsoft Corporation.
 
@@ -463,11 +465,170 @@ var GraphQueryRunner = /** @class */ (function () {
     return GraphQueryRunner;
 }());
 
+var randomId = function (length, alphabet) {
+    if (length === void 0) { length = 10; }
+    if (alphabet === void 0) { alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"; }
+    return Array.from(Array(length)).map(function () { return alphabet[Math.trunc(Math.random() * alphabet.length)]; }).join("");
+};
+var inMinutes = function (mins) { return Date.now() + (mins * 60 * 1000); };
+var passed = function (timestamp) { return timestamp < Date.now(); };
+function Loginner(_opts) {
+    var _this = this;
+    if (_opts === void 0) { _opts = {}; }
+    // TODO produce a middleware, maybe put account in req.acct or at least req.getAcct(), maybe take a function as a continuing middleware?
+    // Remember this is really going to be used by the ZipRpc middleware etc. So it can just look at req.acct or something, or pass on req?
+    var opts = {
+        sendCode: _opts.sendCode || (function (email, code) { return __awaiter(_this, void 0, void 0, function () { return __generator(this, function (_a) {
+            console.log("Code is", code);
+            return [2 /*return*/];
+        }); }); }),
+        newAcct: function (email) { return __awaiter(_this, void 0, void 0, function () {
+            var obj, _a;
+            return __generator(this, function (_b) {
+                switch (_b.label) {
+                    case 0:
+                        if (!_opts.newAcct) return [3 /*break*/, 2];
+                        return [4 /*yield*/, (_opts.newAcct(email))];
+                    case 1:
+                        _a = _b.sent();
+                        return [3 /*break*/, 3];
+                    case 2:
+                        _a = { email: email, id: undefined, firstName: email.split("@")[0] };
+                        _b.label = 3;
+                    case 3:
+                        obj = _a;
+                        return [2 /*return*/, __assign(__assign({}, obj), { id: obj.id || randomId() })];
+                }
+            });
+        }); },
+        me: function (acct) { return __awaiter(_this, void 0, void 0, function () { return __generator(this, function (_a) {
+            return [2 /*return*/, ({ name: acct.name, firstName: acct.firstName, lastName: acct.lastName, displayName: acct.displayName })];
+        }); }); },
+        hashPassword: function (raw) { return Crypto.createHash('sha256').update(raw).digest('hex'); },
+    };
+    var db = {
+        users: [],
+        codes: [],
+        sessions: [],
+    };
+    var pruned = function (list) { return list.filter(function (x) { return !passed(x.expiry); }); };
+    var acctByEmail = function (email) { return db.users.find(function (x) { return x.email === email; }); };
+    var acctById = function (id) { return db.users.find(function (x) { return x.id === id; }); };
+    var verifyToken = function (token) {
+        db.sessions = pruned(db.sessions);
+        var find = db.sessions.find(function (x) { return x.token === token; });
+        return find ? find.acctId : null;
+    };
+    var issueToken = function (acctId) {
+        var token = randomId(32);
+        db.sessions.push({ token: token, acctId: acctId, expiry: inMinutes(24 * 60) });
+        return token;
+    };
+    var api = {
+        useEmail: function (email) {
+            return __awaiter(this, void 0, void 0, function () {
+                var find, newAcct, code;
+                return __generator(this, function (_a) {
+                    switch (_a.label) {
+                        case 0:
+                            find = acctByEmail(email);
+                            if (!!find) return [3 /*break*/, 2];
+                            return [4 /*yield*/, opts.newAcct(email)];
+                        case 1:
+                            newAcct = _a.sent();
+                            db.users.push(newAcct);
+                            find = newAcct;
+                            _a.label = 2;
+                        case 2:
+                            code = randomId(6, "0123456789");
+                            db.codes.push({ code: code, acctId: find.id, expiry: inMinutes(5) });
+                            // TODO send code
+                            return [4 /*yield*/, opts.sendCode(email, code)];
+                        case 3:
+                            // TODO send code
+                            _a.sent();
+                            return [2 /*return*/, { type: "code_sent" }];
+                    }
+                });
+            });
+        },
+        loginWithEmailAndPassword: function (email, password) {
+            return __awaiter(this, void 0, void 0, function () {
+                var passwordHash, acct, token;
+                return __generator(this, function (_a) {
+                    switch (_a.label) {
+                        case 0: return [4 /*yield*/, opts.hashPassword(password)];
+                        case 1:
+                            passwordHash = _a.sent();
+                            acct = acctByEmail(email);
+                            if (!acct)
+                                return [2 /*return*/, { error: "We don't recognize that email. Did you mean to register?" }];
+                            if (!acct.passwordHash)
+                                return [2 /*return*/, { error: "That account has no password. You must login via code, link, etc." }];
+                            if (acct.passwordHash === passwordHash) {
+                                token = issueToken(acct.id);
+                                return [2 /*return*/, { token: token }];
+                            }
+                            else {
+                                return [2 /*return*/, { error: "Incorrect password" }];
+                            }
+                    }
+                });
+            });
+        },
+        loginWithCode: function (code) {
+            return __awaiter(this, void 0, void 0, function () {
+                var find, token;
+                return __generator(this, function (_a) {
+                    db.codes = pruned(db.codes);
+                    find = db.codes.find(function (x) { return x.code === code; });
+                    if (!find)
+                        return [2 /*return*/, null];
+                    find.expiry = 0; // so it cannot be used again
+                    token = issueToken(find.acctId);
+                    return [2 /*return*/, { token: token }];
+                });
+            });
+        },
+        me: function (token) {
+            return __awaiter(this, void 0, void 0, function () {
+                var acctId, acct, me, _a;
+                return __generator(this, function (_b) {
+                    switch (_b.label) {
+                        case 0:
+                            acctId = verifyToken(token);
+                            acct = acctId && acctById(acctId);
+                            _a = acct;
+                            if (!_a) return [3 /*break*/, 2];
+                            return [4 /*yield*/, opts.me(acct)];
+                        case 1:
+                            _a = (_b.sent());
+                            _b.label = 2;
+                        case 2:
+                            me = _a;
+                            return [2 /*return*/, me];
+                    }
+                });
+            });
+        },
+        logout: function (token) {
+            var session = db.sessions.find(function (x) { return x.token === token; });
+            if (!session)
+                return false;
+            db.sessions = db.sessions.filter(function (x) { return x.token !== token; });
+            return true;
+        },
+    };
+    return { api: api, verifyToken: verifyToken };
+}
+
 //   ________  ___  ________   
 var Bundler = _Bundler;
 var ZipRunner = /** @class */ (function () {
     function ZipRunner(site) {
         this.site = site;
+        this.auth = Loginner();
+        this.authRpc = quickRpc(this.auth.api, "/api/auth");
         site.siteBrand = site.siteBrand || site.siteName;
         site.router = site.router || {};
         this.startBackend();
@@ -522,6 +683,9 @@ var ZipRunner = /** @class */ (function () {
         else if (path === "/api/qrpc") {
             this.backendRpc.handler(req, resp);
         }
+        else if (path === "/api/auth") {
+            this.authRpc.handler(req, resp);
+        }
         else if (path.startsWith("/api/")) {
             // REST API -- not currently implemented because we have to think about arg types being only string...
             var method = path.split("/")[2];
@@ -532,11 +696,11 @@ var ZipRunner = /** @class */ (function () {
         }
     };
     ZipRunner.prototype.getFrontendScript = function () {
-        var _this = this;
         var scripts = [];
         scripts.push(this.getFile("zip-client.js"));
         scripts.push("Zip.Backend = " + this.backendRpc.script); // RPC for backend methods
-        var vueFiles = Object.keys(this.site.files).filter(function (x) { return x.endsWith(".vue"); }).map(function (path) { return ({ path: path, contents: _this.site.files[path].data }); });
+        scripts.push("Zip.ZipAuth = " + this.authRpc.script); // RPC for auth methods
+        var vueFiles = this.site.files; // passing extra files won't hurt
         scripts.push(ZipFrontend.fromMemory(vueFiles, __assign(__assign({}, this.site), { siteBrand: this.site.siteBrand /* we assigned it in the constructor */ })).script());
         return scripts.join("\n");
     };
@@ -594,7 +758,7 @@ function quickRpc(backend, endpointUrl) {
 }
 var ZipFrontend = /** @class */ (function () {
     function ZipFrontend() {
-        this.files = [];
+        this.files = {};
     }
     ZipFrontend.fromMemory = function (files, options) {
         var ret = new ZipFrontend();
@@ -602,10 +766,35 @@ var ZipFrontend = /** @class */ (function () {
         ret.options = options;
         return ret;
     };
+    ZipFrontend._filesFromDir = function (localPath, fs) {
+        var ret = {};
+        for (var _i = 0, _a = fs.readdirSync(localPath); _i < _a.length; _i++) {
+            var file = _a[_i];
+            var path = localPath + "/" + file;
+            if (fs.statSync(path).isDirectory()) {
+                var loadDir = ZipFrontend._filesFromDir(path, fs);
+                for (var key in loadDir)
+                    ret[file + "/" + key] = loadDir[key];
+            }
+            else {
+                ret[file.replace(/--/g, "/")] = { data: fs.readFileSync(path).toString() };
+            }
+        }
+        return ret;
+    };
+    ZipFrontend.fromFilesystem = function (path, fs, options) {
+        var files = ZipFrontend._filesFromDir(path, fs);
+        return ZipFrontend.fromMemory(files, options);
+    };
+    ZipFrontend.prototype._allFiles = function () {
+        var _this = this;
+        // Return as an array instead of an object
+        return Object.keys(this.files).map(function (path) { return (__assign(__assign({}, _this.files[path]), { path: path })); });
+    };
     ZipFrontend.prototype._vueFiles = function () {
         var getFileName = function (path) { return path.split("/")[path.split("/").length - 1]; };
         var minusExt = function (fileName) { return fileName.substr(0, fileName.lastIndexOf(".")); };
-        return this.files.filter(function (f) { return f.path.endsWith(".vue"); }).map(function (f) {
+        return this._allFiles().filter(function (f) { return f.path.endsWith(".vue"); }).map(function (f) {
             var autoRoute = f.path === "pages/Home.vue" ? "/"
                 : f.path.startsWith('pages/') ? ('/' + minusExt(f.path.substr(6)).replace(/__/g, ':'))
                     : null;
@@ -620,7 +809,7 @@ var ZipFrontend = /** @class */ (function () {
             // Provide a default 'route' options key (feel free to override)
             if (vueFile.autoRoute)
                 mutationCode += "exp.route = exp.route || " + JSON.stringify(vueFile.autoRoute) + "\n";
-            return Bundler.VueSfcs.convVueSfcToJsModule(vueFile.contents, Bundler.VueSfcs.vueClassTransformerScript(), mutationCode);
+            return Bundler.VueSfcs.convVueSfcToJsModule(vueFile.data, Bundler.VueSfcs.vueClassTransformerScript(), mutationCode);
         });
     };
     ZipFrontend.prototype.script = function () {

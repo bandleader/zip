@@ -17,6 +17,33 @@ export default class ZipRunner {
     site: ZipSite;
     backend: any;
     backendRpc: ReturnType<typeof quickRpc>;
+    auth: {
+        api: {
+            useEmail(email: string): Promise<{
+                type: string;
+            }>;
+            loginWithEmailAndPassword(email: string, password: string): Promise<{
+                error: string;
+                token?: undefined;
+            } | {
+                token: string;
+                error?: undefined;
+            }>;
+            loginWithCode(code: string): Promise<{
+                token: string;
+            }>;
+            me(token: string): Promise<{}>;
+            logout(token: string): boolean;
+        };
+        verifyToken: (token: string) => string;
+    };
+    authRpc: {
+        script: string;
+        handler: (req: any, res: any) => Promise<void>;
+        setup: (expressApp: {
+            post: Function;
+        }) => any;
+    };
     constructor(site: ZipSite);
     getFile(path: string): string;
     getFrontendIndex(): string;
@@ -39,20 +66,20 @@ declare type ZipFrontendOptions = {
     siteBrand: string;
 };
 export declare class ZipFrontend {
-    files: {
-        path: string;
-        contents: string;
-    }[];
+    files: Dict<ZipFile>;
     options: ZipFrontendOptions;
-    static fromMemory(files: {
+    static fromMemory(files: Dict<ZipFile>, options: ZipFrontendOptions): ZipFrontend;
+    static _filesFromDir(localPath: string, fs: any): Record<string, ZipFile>;
+    static fromFilesystem(path: string, fs: any, options: ZipFrontendOptions): ZipFrontend;
+    _allFiles(): {
         path: string;
-        contents: string;
-    }[], options: ZipFrontendOptions): ZipFrontend;
+        data: string;
+    }[];
     _vueFiles(): {
         autoRoute: string;
         componentKey: string;
         path: string;
-        contents: string;
+        data: string;
     }[];
     _vueModules(): string[];
     script(): string;

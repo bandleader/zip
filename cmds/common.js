@@ -1,6 +1,6 @@
 const fs = require('fs')
 const process = require('process')
-let ZipRunner = require('../dist/index')
+let Zip = require('../dist/index')
 
 function getPackageRoot() {
     let projRoot = process.cwd()
@@ -11,20 +11,6 @@ function getPackageRoot() {
         if (projRoot.length <= 3) throw "Couldn't find `package.json` anywhere"
     }
     return projRoot
-}
-
-function filesFromDir(localPath) {
-    const ret = {}
-    for (const file of fs.readdirSync(localPath)) {
-        const path = `${localPath}/${file}`
-        if (fs.statSync(path).isDirectory()) {
-            const loadDir = filesFromDir(path)
-            for (const key in loadDir) ret[`${file}/${key}`] = loadDir[key]
-        } else {
-            ret[file.replace(/--/g, "/")] = { data: fs.readFileSync(path).toString() }
-        }
-    }
-    return ret
 }
 
 function getZipContext() {
@@ -39,13 +25,13 @@ function getZipContext() {
     const site = {
         siteName: "Zip Site",
         files: {
-            ...filesFromDir(__dirname + "/../default-files"),
-            ...filesFromDir(zipSrcDirectoriesWhereExists[0])
+            ...Zip.ZipFrontend._filesFromDir(__dirname + "/../default-files", fs),
+            ...Zip.ZipFrontend._filesFromDir(zipSrcDirectoriesWhereExists[0], fs)
         }
     }
     for (const k in zipConfig) site[k] = zipConfig[k]
 
-    const runner = new ZipRunner.default(site, "http://localhost:8005")
+    const runner = new Zip.default(site, "http://localhost:8005")
     return {
         root,
         packageJson,
@@ -56,8 +42,7 @@ function getZipContext() {
 
 module.exports = {
     getZipContext,
-    filesFromDir,
     getPackageRoot,
-    ZipRunner,
-    setZipRunner(newRunner) { ZipRunner = newRunner }
+    ZipRunner: Zip.default,
+    setZip(newZip) { Zip = newZip }
 }

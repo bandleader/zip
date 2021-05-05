@@ -1,7 +1,8 @@
-import ZipRunner from './src/zip-runner'
+import * as Zip from './src/zip-runner'
+
 
 // Use zip-serve for testing, just replace with our copy of ZipRunner, instead of the dev version
-require('./cmds/common').setZipRunner(ZipRunner)
+require('./cmds/common').setZip(Zip)
 require('./cmds/zip-serve')
 
 // Old code:
