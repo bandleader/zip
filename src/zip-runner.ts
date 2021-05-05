@@ -44,6 +44,7 @@ export default class ZipRunner {
   constructor(public site: ZipSite) { 
     site.siteBrand = site.siteBrand || site.siteName
     site.router = site.router || {}
+    site.basePath = site.basePath || "/"
     
     this.startBackend()
   }
@@ -80,7 +81,7 @@ export default class ZipRunner {
     const graphResolver = backend.graph
     if (graphResolver) backend.graph = (queryObj: any) => GraphQueryRunner.resolve(graphResolver, queryObj)
     
-    this.backendRpc = quickRpc(backend, "/api/qrpc")
+    this.backendRpc = quickRpc(backend, `${this.site.basePath}api/qrpc`)
   }
  
   handleRequest(path: string, req: any, resp: any) {

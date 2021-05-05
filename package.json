@@ -1,6 +1,6 @@
 {
   "name": "zip",
-  "version": "0.2.17",
+  "version": "0.2.18",
   "description": "Framework for quick web apps",
   "main": "dist/index.js",
   "module": "dist/index.es.js",

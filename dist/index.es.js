@@ -627,6 +627,7 @@ var ZipRunner = /** @class */ (function () {
         this.authRpc = quickRpc(this.auth.api, "/api/auth");
         site.siteBrand = site.siteBrand || site.siteName;
         site.router = site.router || {};
+        site.basePath = site.basePath || "/";
         this.startBackend();
     }
     ZipRunner.prototype.getFile = function (path) {
@@ -659,7 +660,7 @@ var ZipRunner = /** @class */ (function () {
         var graphResolver = backend.graph;
         if (graphResolver)
             backend.graph = function (queryObj) { return GraphQueryRunner.resolve(graphResolver, queryObj); };
-        this.backendRpc = quickRpc(backend, "/api/qrpc");
+        this.backendRpc = quickRpc(backend, this.site.basePath + "api/qrpc");
     };
     ZipRunner.prototype.handleRequest = function (path, req, resp) {
         if (!resp.json)
