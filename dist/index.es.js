@@ -645,18 +645,21 @@ var ZipRunner = /** @class */ (function () {
     };
     ZipRunner.prototype.startBackend = function () {
         // TODO use clearableScheduler
-        var backendModuleText = this.getFile("backend.js");
-        this.backend = Bundler.evalEx(Bundler.SimpleBundler.moduleCodeToIife(backendModuleText, undefined, true), { require: require });
-        if (typeof this.backend === 'function')
-            this.backend = this.backend();
-        if (Object.keys(this.backend).filter(function (x) { return x !== 'greeting'; }).length) {
-            console.log("Loaded backend with methods:", Object.keys(this.backend).join(", "));
+        var backend = this.site.backend;
+        if (!backend) {
+            var backendModuleText = this.getFile("backend.js");
+            backend = Bundler.evalEx(Bundler.SimpleBundler.moduleCodeToIife(backendModuleText, undefined, true), { require: require });
+        }
+        if (typeof backend === 'function')
+            backend = backend.backend();
+        if (Object.keys(backend).filter(function (x) { return x !== 'greeting'; }).length) {
+            console.log("Loaded backend with methods:", Object.keys(backend).join(", "));
         }
         // Allow graph queries
-        var graphResolver = this.backend.graph;
+        var graphResolver = backend.graph;
         if (graphResolver)
-            this.backend.graph = function (queryObj) { return GraphQueryRunner.resolve(graphResolver, queryObj); };
-        this.backendRpc = quickRpc(this.backend, "/api/qrpc");
+            backend.graph = function (queryObj) { return GraphQueryRunner.resolve(graphResolver, queryObj); };
+        this.backendRpc = quickRpc(backend, "/api/qrpc");
     };
     ZipRunner.prototype.handleRequest = function (path, req, resp) {
         if (!resp.json)

@@ -9,13 +9,13 @@ declare type ZipSite = {
     router?: {
         mode?: "history" | "hash";
     };
+    backend?: Record<string, Function>;
 };
 declare type ZipFile = {
     data: string;
 };
 export default class ZipRunner {
     site: ZipSite;
-    backend: any;
     backendRpc: ReturnType<typeof quickRpc>;
     auth: {
         api: {

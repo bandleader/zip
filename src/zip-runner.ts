@@ -21,7 +21,8 @@ type ZipSite = {
   basePath?: string /*include slashes. default is "/" */,
   router?: {
     mode?: "history"|"hash"
-  }
+  },
+  backend?: Record<string, Function>,
 }
 type ZipFile = { data: string }
 
@@ -36,7 +37,6 @@ function clearableScheduler() {
 }
 
 export default class ZipRunner {
-  backend: any
   backendRpc: ReturnType<typeof quickRpc>
   auth = Identity.Loginner()
   authRpc = quickRpc(this.auth.api, "/api/auth")
@@ -65,18 +65,22 @@ export default class ZipRunner {
 
   startBackend() {
     // TODO use clearableScheduler
-    const backendModuleText = this.getFile("backend.js")
-    this.backend = Bundler.evalEx(Bundler.SimpleBundler.moduleCodeToIife(backendModuleText, undefined, true), { require })
-    if (typeof this.backend === 'function') this.backend = this.backend()
-    if (Object.keys(this.backend).filter(x => x !== 'greeting').length) {
-      console.log("Loaded backend with methods:", Object.keys(this.backend).join(", "))
+    let backend = this.site.backend!
+    if (!backend) {
+      const backendModuleText = this.getFile("backend.js")
+      backend = Bundler.evalEx(Bundler.SimpleBundler.moduleCodeToIife(backendModuleText, undefined, true), { require })
+    }
+    
+    if (typeof backend === 'function') backend = (backend as any).backend()
+    if (Object.keys(backend).filter(x => x !== 'greeting').length) {
+      console.log("Loaded backend with methods:", Object.keys(backend).join(", "))
     }
 
     // Allow graph queries
-    const graphResolver = this.backend.graph
-    if (graphResolver) this.backend.graph = (queryObj: any) => GraphQueryRunner.resolve(graphResolver, queryObj)
+    const graphResolver = backend.graph
+    if (graphResolver) backend.graph = (queryObj: any) => GraphQueryRunner.resolve(graphResolver, queryObj)
     
-    this.backendRpc = quickRpc(this.backend, "/api/qrpc")
+    this.backendRpc = quickRpc(backend, "/api/qrpc")
   }
  
   handleRequest(path: string, req: any, resp: any) {
