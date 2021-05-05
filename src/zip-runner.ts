@@ -115,7 +115,7 @@ export default class ZipRunner {
     scripts.push(this.getFile("zip-client.js"))
     scripts.push("Zip.Backend = " + this.backendRpc.script) // RPC for backend methods
     scripts.push("Zip.ZipAuth = " + this.authRpc.script) // RPC for auth methods
-    const vueFiles = Object.keys(this.site.files).filter(x => x.endsWith(".vue")).map(path => ({ path, contents: this.site.files[path].data }))
+    const vueFiles = Object.keys(this.site.files).filter(x => x.endsWith(".vue")).reduce((a,c) => { a[c] = this.site.files[c].data; return  a }, {} as Record<string,string>)
     scripts.push(ZipFrontend.fromMemory(vueFiles, {...this.site, siteBrand: this.site.siteBrand! /* we assigned it in the constructor */ }).script())
     return scripts.join("\n")
   }
@@ -166,19 +166,38 @@ export function quickRpc(backend: Record<string, Function>, endpointUrl = "/api"
 }
 
 type ZipFrontendOptions = { basePath?: string, router?: { mode?: "history"|"hash" }, siteBrand: string }
+type BasicFileObj = Record<string, string>
 export class ZipFrontend {
-  files: { path: string, contents: string }[] = []
+  files: BasicFileObj = {}
   options: ZipFrontendOptions
-  static fromMemory(files: { path: string, contents: string }[], options: ZipFrontendOptions) {
+  static fromMemory(files: BasicFileObj, options: ZipFrontendOptions) {
     const ret = new ZipFrontend()
     ret.files = files
     ret.options = options
     return ret
   }
+  static _filesFromDir(localPath: string, fs: any) {
+    const ret: Record<string, string> = {}
+    for (const file of (fs.readdirSync(localPath) as string[])) {
+        const path = `${localPath}/${file}`
+        if (fs.statSync(path).isDirectory()) {
+            const loadDir = ZipFrontend._filesFromDir(path, fs)
+            for (const key in loadDir) ret[`${file}/${key}`] = loadDir[key]
+        } else {
+            ret[file.replace(/--/g, "/")] = fs.readFileSync(path).toString()
+        }
+    }
+    return ret
+  }
+  static fromFilesystem(path: string, fs: any, options: ZipFrontendOptions) {
+    const files = ZipFrontend._filesFromDir(path, fs)
+    return ZipFrontend.fromMemory(files, options)
+  }
+  _allFiles() { return Object.keys(this.files).map(path => ({ path, contents: this.files[path] })) }
   _vueFiles() {
     const getFileName = (path: string) => path.split("/")[path.split("/").length - 1]
     const minusExt = (fileName: string) => fileName.substr(0, fileName.lastIndexOf("."))
-    return this.files.filter(f => f.path.endsWith(".vue")).map(f => {
+    return this._allFiles().filter(f => f.path.endsWith(".vue")).map(f => {
       const autoRoute = 
         f.path === "pages/Home.vue" ? "/"
         : f.path.startsWith('pages/') ? ('/' + minusExt(f.path.substr(6)).replace(/__/g, ':')) 
