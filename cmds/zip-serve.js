@@ -62,17 +62,27 @@ const server = http.createServer((request, response) => {
   console.log(request.method, request.url)
 
   // Check for static file
-  const normalizedStaticRoot = path.normalize(curContext().root + '/static')
-  const normalizedRequestLocalPath = path.normalize(`${normalizedStaticRoot}/${request.url}`)
-  if (normalizedRequestLocalPath.startsWith(normalizedStaticRoot) && fs.existsSync(normalizedRequestLocalPath) && fs.statSync(normalizedRequestLocalPath).isFile()) {
-    const stat = fs.statSync(normalizedRequestLocalPath)
-    console.log('=>', normalizedRequestLocalPath)
+  const staticRoots = [
+    curContext().mainZipSrcPath + '/static',
+    __dirname + '/../default-files/static'
+  ]
+  let foundFile = null
+  for (const sr of staticRoots) {
+    const normalizedRoot = path.normalize(sr)
+    const normalizedReqPath = path.normalize(`${normalizedRoot}/${request.url}`)
+    if (normalizedReqPath.startsWith(normalizedRoot) && fs.existsSync(normalizedReqPath) && fs.statSync(normalizedReqPath).isFile()) {
+      foundFile = normalizedReqPath
+      break;
+    }
+  }
+  if (foundFile) {
+    const stat = fs.statSync(foundFile)
     response.writeHead(200, {
       // TODO: Send content-type. Maybe just throw in the towel and use Express...
       // 'Content-Type': 'audio/mpeg', 
       'Content-Length': stat.size
     })
-    const readStream = fs.createReadStream(normalizedRequestLocalPath)
+    const readStream = fs.createReadStream(foundFile)
     readStream.pipe(response)
   } else {
     // Pass to Zip

@@ -21,22 +21,24 @@ function getZipContext() {
     const zipSrcDirectories = [root + "/zip-src", root + "/zipsrc"]
     const zipSrcDirectoriesWhereExists = zipSrcDirectories.filter(fs.existsSync)
     if (!zipSrcDirectoriesWhereExists.length) throw "No `zip-src` directories found: " + zipSrcDirectories.join(", ")
+    const mainZipSrcPath = zipSrcDirectoriesWhereExists[0]
 
     const site = {
         siteName: "Zip Site",
         files: {
             ...Zip.ZipFrontend._filesFromDir(__dirname + "/../default-files", fs),
-            ...Zip.ZipFrontend._filesFromDir(zipSrcDirectoriesWhereExists[0], fs)
+            ...Zip.ZipFrontend._filesFromDir(mainZipSrcPath, fs)
         }
     }
     for (const k in zipConfig) site[k] = zipConfig[k]
 
-    const runner = new Zip.default(site, "http://localhost:8005")
+    const runner = new Zip.default(site)
     return {
         root,
+        mainZipSrcPath,
         packageJson,
         zipConfig,
-        runner
+        runner,
     }
 }
 
