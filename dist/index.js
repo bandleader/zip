@@ -657,6 +657,12 @@ var ZipRunner = /** @class */ (function () {
         site.router = site.router || {};
         site.basePath = site.basePath || "/";
         this.startBackend();
+        if (site.app) {
+            var express = require('express');
+            site.app.use(express.static("./static"));
+            site.app.use(express.static("./node_modules/zip/default-files/static"));
+            site.app.all("*", this.handler);
+        }
     }
     ZipRunner.prototype.getFile = function (path) {
         if (!this.site.files[path])
@@ -692,7 +698,7 @@ var ZipRunner = /** @class */ (function () {
             backend.graph = function (queryObj) { return GraphQueryRunner.resolve(graphResolver, queryObj); };
         this.backendRpc = quickRpc(backend, this.site.basePath + "api/qrpc");
     };
-    Object.defineProperty(ZipRunner.prototype, "middleware", {
+    Object.defineProperty(ZipRunner.prototype, "handler", {
         get: function () {
             var _this = this;
             return function (req, resp) {

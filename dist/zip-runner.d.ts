@@ -5,6 +5,7 @@ declare type Dict<T> = Record<string, T>;
 declare type ZipSite = {
     siteName?: string;
     siteBrand?: string;
+    app?: any;
     files?: Dict<ZipFile>;
     basePath?: string;
     router?: {
@@ -49,7 +50,7 @@ export declare class ZipRunner {
     getFile(path: string): string;
     getFrontendIndex(): string;
     startBackend(): void;
-    get middleware(): (req: any, resp: any) => void;
+    get handler(): (req: any, resp: any) => void;
     handleRequest(path: string, req: any, resp: any): void;
     getFrontendScript(): string;
 }

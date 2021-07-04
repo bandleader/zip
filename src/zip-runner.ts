@@ -28,6 +28,7 @@ type Dict<T> = Record<string, T>
 type ZipSite = { 
   siteName?: string, 
   siteBrand?: string, 
+  app?: any, // For Express
   files?: Dict<ZipFile>, 
   basePath?: string /*include slashes. default is "/" */,
   router?: {
@@ -73,6 +74,13 @@ export class ZipRunner {
     site.basePath = site.basePath || "/"
     
     this.startBackend()
+
+    if (site.app) {
+      const express = require('express')
+      site.app.use(express.static("./static"))
+      site.app.use(express.static("./node_modules/zip/default-files/static"))
+      site.app.all("*", this.handler)
+    }
   }
 
   getFile(path: string) {
@@ -113,7 +121,7 @@ export class ZipRunner {
     this.backendRpc = quickRpc(backend, `${this.site.basePath}api/qrpc`)
   }
  
-  get middleware() { 
+  get handler() { 
     return (req: any, resp: any) => {
       this.handleRequest(req.path, req, resp)
     }

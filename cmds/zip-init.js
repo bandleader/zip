@@ -33,20 +33,19 @@ console.log("\n🎉 Welcome to Zip Init!")
         package.dependencies.express = package.dependencies.express || "*"
         //${backend ? `import backend from './backend'\n` : ''}
             fs.writeFileSync(backendFile, `
-import * as express from 'express'
+import * as Express from 'express'
 import * as Zip from 'zip'
 
+// Define your backend API here
 const backend = {
-    greeting(name) { return \`Hello, \${name}!\` }
+    greeting(name${ts ? ': string' : ''}) { return \`Hello, \${name}!\` }
 }
 
-const app = express()
-const site = new Zip.ZipRunner({${backend ? '\n  backend,' : ''}
-  siteName: ${JSON.stringify(zipConfig.siteName)}
-})
-app.use(express.static("./static"))
-app.use(express.static("./node_modules/zip/default-files/static"))
-app.use("*", site.middleware)
+const app = Express()
+const site = new Zip.ZipRunner({
+  app,
+  siteName: ${JSON.stringify(zipConfig.siteName)},
+${backend ? '  backend,\n' : ''}})
 const port = process.env.PORT || 8050
 app.listen(port, () => {
   console.info(\`Your Zip app is listening on http://localhost:\${port}\`)
