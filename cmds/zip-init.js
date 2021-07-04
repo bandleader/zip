@@ -44,8 +44,11 @@ const app = express()
 const site = new Zip.ZipRunner({${backend ? '\n  backend,' : ''}
   siteName: ${JSON.stringify(zipConfig.siteName)}
 })
+app.use(express.static("./static"))
+app.use(express.static("./node_modules/zip/default-files/static"))
 app.use("*", site.middleware)
-app.listen(process.env.PORT || 8050, () => {
+const port = process.env.PORT || 8050
+app.listen(port, () => {
   console.info(\`Your Zip app is listening on http://localhost:\${port}\`)
 })
             `)

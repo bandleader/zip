@@ -113,7 +113,7 @@ export class ZipRunner {
     this.backendRpc = quickRpc(backend, `${this.site.basePath}api/qrpc`)
   }
  
-  get middlware() { 
+  get middleware() { 
     return (req: any, resp: any) => {
       this.handleRequest(req.path, req, resp)
     }

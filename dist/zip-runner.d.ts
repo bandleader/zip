@@ -49,7 +49,7 @@ export declare class ZipRunner {
     getFile(path: string): string;
     getFrontendIndex(): string;
     startBackend(): void;
-    get middlware(): (req: any, resp: any) => void;
+    get middleware(): (req: any, resp: any) => void;
     handleRequest(path: string, req: any, resp: any): void;
     getFrontendScript(): string;
 }

@@ -688,7 +688,7 @@ var ZipRunner = /** @class */ (function () {
             backend.graph = function (queryObj) { return GraphQueryRunner.resolve(graphResolver, queryObj); };
         this.backendRpc = quickRpc(backend, this.site.basePath + "api/qrpc");
     };
-    Object.defineProperty(ZipRunner.prototype, "middlware", {
+    Object.defineProperty(ZipRunner.prototype, "middleware", {
         get: function () {
             var _this = this;
             return function (req, resp) {
