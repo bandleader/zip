@@ -71,9 +71,9 @@ app.listen(port, () => {
     prom.catch(console.error)
     await prom
 
-    console.info("✅ Done!")
-    if (globDeps.length) console.info("NOTE: If you haven't yet, install global dependencies by typing:\n\n   npm install -g " + globDeps.join(" "))
-    console.log("")
+    console.info("✅ Done!\n")
+    if (globDeps.length) console.info("NOTE: If you haven't yet, install global dependencies by typing:\n\n   npm install -g " + globDeps.join(" ") + "\n")
+    console.info("You can run your Zip app by typing:\n\n   npm run serve\n")
 })()
 
 function initPackage() {
