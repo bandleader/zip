@@ -25,6 +25,8 @@ console.log("\n🎉 Welcome to Zip Init!")
     
     initZipSrc()
 
+    if (!fs.existsSync("./.gitignore")) fs.writeFileSync("./gitignore", `# Just the basics -- feel free to get something more complete at http://gitignore.io\n\nnode_modules\n.data/`)
+
     if (backend) {
         const backendFile = ts ? "./app.ts" : "./app.js"
         const runner = ts ? "ts-node-dev" : "node-dev"
