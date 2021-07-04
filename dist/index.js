@@ -624,11 +624,35 @@ function Loginner(_opts) {
 
 //   ________  ___  ________   
 var Bundler = _Bundler;
+function getPackageRoot() {
+    var projRoot = process.cwd();
+    while (!(require('fs').existsSync(projRoot + "/package.json"))) {
+        console.warn("Couldn't find package.json at " + projRoot);
+        projRoot = projRoot.replace(/\\/g, "/").split("/").slice(0, projRoot.split("/").length - 1).join("/"); // hack off one directory
+        console.warn("Trying " + projRoot);
+        if (projRoot.length <= 3)
+            throw "Couldn't find `package.json` anywhere";
+    }
+    return projRoot;
+}
 var ZipRunner = /** @class */ (function () {
     function ZipRunner(site) {
+        if (site === void 0) { site = {}; }
         this.site = site;
         this.auth = Loginner();
         this.authRpc = quickRpc(this.auth.api, "/api/auth");
+        if (!site.files) {
+            // Load from package.json
+            var root = getPackageRoot(), fs = require('fs');
+            site.files = __assign(__assign({}, ZipFrontend._filesFromDir(__dirname + "/../default-files", fs)), ZipFrontend._filesFromDir(root + "/zip-src", fs));
+            var packageJson = JSON.parse(fs.readFileSync(root + "/package.json")); // require(root + '/package.json')
+            var zipConfig = packageJson.zip || {};
+            for (var k in zipConfig)
+                site[k] = zipConfig[k]; // TODO apply deeply
+            site.siteName = site.siteName || packageJson.name;
+        }
+        // Set some defaults
+        site.siteName = site.siteName || "Zip Site";
         site.siteBrand = site.siteBrand || site.siteName;
         site.router = site.router || {};
         site.basePath = site.basePath || "/";
@@ -668,6 +692,16 @@ var ZipRunner = /** @class */ (function () {
             backend.graph = function (queryObj) { return GraphQueryRunner.resolve(graphResolver, queryObj); };
         this.backendRpc = quickRpc(backend, this.site.basePath + "api/qrpc");
     };
+    Object.defineProperty(ZipRunner.prototype, "middlware", {
+        get: function () {
+            var _this = this;
+            return function (req, resp) {
+                _this.handleRequest(req.path, req, resp);
+            };
+        },
+        enumerable: true,
+        configurable: true
+    });
     ZipRunner.prototype.handleRequest = function (path, req, resp) {
         if (!resp.json)
             resp.json = function (obj) { return resp.send(JSON.stringify(obj)); };
@@ -838,5 +872,7 @@ var ZipFrontend = /** @class */ (function () {
 
 exports.Bundler = Bundler;
 exports.ZipFrontend = ZipFrontend;
+exports.ZipRunner = ZipRunner;
 exports.default = ZipRunner;
+exports.getPackageRoot = getPackageRoot;
 exports.quickRpc = quickRpc;

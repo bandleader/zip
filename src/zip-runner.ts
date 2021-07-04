@@ -12,12 +12,23 @@ export const Bundler = _Bundler
 import GraphQueryRunner from './graph'
 import * as Identity from './identity'
 
+export function getPackageRoot() {
+  let projRoot = process.cwd()
+  while (!(require('fs').existsSync(projRoot + "/package.json"))) {
+      console.warn("Couldn't find package.json at " + projRoot)
+      projRoot = projRoot.replace(/\\/g, "/").split("/").slice(0, projRoot.split("/").length - 1).join("/") // hack off one directory
+      console.warn("Trying " + projRoot)
+      if (projRoot.length <= 3) throw "Couldn't find `package.json` anywhere"
+  }
+  return projRoot
+}
+
 
 type Dict<T> = Record<string, T>
 type ZipSite = { 
-  siteName: string, 
+  siteName?: string, 
   siteBrand?: string, 
-  files: Dict<ZipFile>, 
+  files?: Dict<ZipFile>, 
   basePath?: string /*include slashes. default is "/" */,
   router?: {
     mode?: "history"|"hash"
@@ -36,12 +47,27 @@ function clearableScheduler() {
   }
 }
 
-export default class ZipRunner {
+export class ZipRunner {
   backendRpc: ReturnType<typeof quickRpc>
   auth = Identity.Loginner()
   authRpc = quickRpc(this.auth.api, "/api/auth")
 
-  constructor(public site: ZipSite) { 
+  constructor(public site: ZipSite = {}) { 
+    if (!site.files) {
+      // Load from package.json
+      const root = getPackageRoot(), fs = require('fs')
+      site.files = {
+          ...ZipFrontend._filesFromDir(__dirname + "/../default-files", fs),
+          ...ZipFrontend._filesFromDir(root + "/zip-src", fs)
+      }
+      const packageJson = JSON.parse(fs.readFileSync(root + "/package.json")) // require(root + '/package.json')
+      const zipConfig = packageJson.zip || {}
+      for (const k in zipConfig) (site as any)[k] = zipConfig[k] // TODO apply deeply
+      site.siteName = site.siteName || packageJson.name
+    }
+
+    // Set some defaults
+    site.siteName = site.siteName || "Zip Site"
     site.siteBrand = site.siteBrand || site.siteName
     site.router = site.router || {}
     site.basePath = site.basePath || "/"
@@ -87,6 +113,12 @@ export default class ZipRunner {
     this.backendRpc = quickRpc(backend, `${this.site.basePath}api/qrpc`)
   }
  
+  get middlware() { 
+    return (req: any, resp: any) => {
+      this.handleRequest(req.path, req, resp)
+    }
+  }
+
   handleRequest(path: string, req: any, resp: any) {
     if (!resp.json) resp.json = (obj: any) => resp.send(JSON.stringify(obj))
     
@@ -172,6 +204,7 @@ export function quickRpc(backend: Record<string, Function>, endpointUrl = "/api"
 
   return { script, handler, setup }
 }
+export default ZipRunner
 
 type ZipFrontendOptions = { basePath?: string, router?: { mode?: "history"|"hash" }, siteBrand: string }
 export class ZipFrontend {

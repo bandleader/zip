@@ -1,10 +1,11 @@
 import * as _Bundler from './bundler';
 export declare const Bundler: typeof _Bundler;
+export declare function getPackageRoot(): string;
 declare type Dict<T> = Record<string, T>;
 declare type ZipSite = {
-    siteName: string;
+    siteName?: string;
     siteBrand?: string;
-    files: Dict<ZipFile>;
+    files?: Dict<ZipFile>;
     basePath?: string;
     router?: {
         mode?: "history" | "hash";
@@ -14,7 +15,7 @@ declare type ZipSite = {
 declare type ZipFile = {
     data: string;
 };
-export default class ZipRunner {
+export declare class ZipRunner {
     site: ZipSite;
     backendRpc: ReturnType<typeof quickRpc>;
     auth: {
@@ -44,10 +45,11 @@ export default class ZipRunner {
             post: Function;
         }) => any;
     };
-    constructor(site: ZipSite);
+    constructor(site?: ZipSite);
     getFile(path: string): string;
     getFrontendIndex(): string;
     startBackend(): void;
+    get middlware(): (req: any, resp: any) => void;
     handleRequest(path: string, req: any, resp: any): void;
     getFrontendScript(): string;
 }
@@ -58,6 +60,7 @@ export declare function quickRpc(backend: Record<string, Function>, endpointUrl?
         post: Function;
     }) => any;
 };
+export default ZipRunner;
 declare type ZipFrontendOptions = {
     basePath?: string;
     router?: {
@@ -84,4 +87,3 @@ export declare class ZipFrontend {
     _vueModules(): string[];
     script(): string;
 }
-export {};
