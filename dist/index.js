@@ -650,14 +650,15 @@ var ZipRunner = /** @class */ (function () {
         return contents;
     };
     ZipRunner.prototype.startBackend = function () {
-        // TODO use clearableScheduler
         var backend = this.site.backend;
+        // Allow using a file in the Zip VFS called `backend.js`
         if (!backend) {
             var backendModuleText = this.getFile("backend.js");
+            // TODO use clearableScheduler
             backend = Bundler.evalEx(Bundler.SimpleBundler.moduleCodeToIife(backendModuleText, undefined, true), { require: require });
+            if (typeof backend === 'function')
+                backend = backend.backend();
         }
-        if (typeof backend === 'function')
-            backend = backend.backend();
         if (Object.keys(backend).filter(function (x) { return x !== 'greeting'; }).length) {
             console.log("Loaded backend with methods:", Object.keys(backend).join(", "));
         }

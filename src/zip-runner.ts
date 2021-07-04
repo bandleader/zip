@@ -66,14 +66,16 @@ export default class ZipRunner {
   }
 
   startBackend() {
-    // TODO use clearableScheduler
     let backend = this.site.backend!
+    
+    // Allow using a file in the Zip VFS called `backend.js`
     if (!backend) {
       const backendModuleText = this.getFile("backend.js")
+      // TODO use clearableScheduler
       backend = Bundler.evalEx(Bundler.SimpleBundler.moduleCodeToIife(backendModuleText, undefined, true), { require })
+      if (typeof backend === 'function') backend = (backend as any).backend()
     }
     
-    if (typeof backend === 'function') backend = (backend as any).backend()
     if (Object.keys(backend).filter(x => x !== 'greeting').length) {
       console.log("Loaded backend with methods:", Object.keys(backend).join(", "))
     }
