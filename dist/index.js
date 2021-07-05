@@ -233,8 +233,9 @@ var SimpleBundler = /** @class */ (function () {
                 var resolved = _this.pathResolver(path, m);
                 if (!resolved)
                     throw "'" + m.key + "': Could not resolve module path '" + path + "'";
-                if (!modulesToCompile.includes(resolved))
-                    modulesToCompile.push(resolved); // Add the 'require'd module to our list
+                if (!modulesToCompile.some(function (x) { return x.key === resolved.key; }))
+                    modulesToCompile.push(resolved); // Add the 'require'd module to our list if not already there. Now done by key but was formerly this which didn't detect something imported from two different places: (!modulesToCompile.includes(resolved))
+                // TODO: really the pathResolver itself should not bother loading it if they key matches an existing one...
                 return "require('" + resolved.key + "')";
             });
             compiledModules.push(__assign(__assign({}, m), { factoryFuncString: factoryFuncString }));
@@ -249,6 +250,13 @@ var SimpleBundler = /** @class */ (function () {
         return "\n      ;(function(){\n        const factories = [\n          " + compiledModules.map(function (m) { return "{\n            key: " + JSON.stringify(m.key) + ",\n            factory: " + m.factoryFuncString + ",\n            main: " + !!m.main + "\n          }"; }).join(",") + "\n        ]\n        const require = " + SimpleBundler._moduleLoader + "(factories)\n        factories.filter(x => x.main).forEach(x => require(x.key)) // Run any 'main' modules\n        return require\n      })()\n    ";
     };
     SimpleBundler.moduleCodeToFactoryFunc = function (jsCode, importCallback) {
+        // EXPERIMENTAL: allow ES6 import syntax
+        // default imports: import foo from 'module'
+        jsCode = jsCode.replace(/[ \t]*import ([A-Za-z0-9_]+) from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, function (whole, identifier, path) { return "const " + identifier + " = require('" + path + "').default"; });
+        // namespaced entire import: import * as foo from 'module'
+        jsCode = jsCode.replace(/[ \t]*import \* as ([A-Za-z0-9_]+) from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, function (whole, identifier, path) { return "const " + identifier + " = require('" + path + "')"; });
+        // named imports: import { a, b, c } from 'module'
+        jsCode = jsCode.replace(/[ \t]*import \{([A-Za-z0-9_, ]+)\} from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, function (whole, imports, path) { return "const { " + imports + " } = require('" + path + "')"; });
         // Optionally resolve calls to `require()`
         if (importCallback)
             jsCode = jsCode.replace(/require\([\'\"](.+?)[\'\"]\)/g, function (_, path) { return importCallback(path); });
@@ -305,7 +313,8 @@ var SimpleBundler = /** @class */ (function () {
                 }
                 catch (ex) {
                     m.loading = false;
-                    throw new Error("Error while running module '" + key + "': " + ex);
+                    console.error("Error while running module '" + key + "': " + ex);
+                    throw ex;
                 }
             }
             return m.exports;
