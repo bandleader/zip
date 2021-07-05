@@ -198,13 +198,13 @@ var SimpleBundler = /** @class */ (function () {
         this.pathResolver = function (pathString, fromModule) {
             var ret = undefined;
             var attempt = function (what) { if (!ret)
-                ret = what; };
+                ret = what(); };
             var normalizePath = function (path) { return path.split("/").reduce(function (a, c) {
                 return (c === ".") ? a :
                     (c === ".." && a.length) ? a.slice(0, a.length - 1) :
                         (c === "..") ? (function () { throw "Invalid path: '" + path + "'"; })() : __spreadArrays(a, [c]);
             }, []).join("/"); };
-            var attemptPath = function (path) { return attempt(_this.modulesToBundle.find(function (x) { return x.key === normalizePath(path); })); };
+            var attemptPath = function (path) { return attempt(function () { return _this.modulesToBundle.find(function (x) { return x.key === normalizePath(path); }); }); };
             var attemptPathWithExts = function (path) { [path, path + ".js", path + "/index.js"].forEach(attemptPath); };
             if (pathString.startsWith("./") || pathString.startsWith("../")) {
                 var getDir = function (path) { return path.split("/").slice(0, path.split("/").length - 1).join("/"); };

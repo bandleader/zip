@@ -146,14 +146,14 @@ export class SimpleBundler {
   pathResolver: (pathString: string, fromModule: InputModule) => InputModule|undefined = 
     (pathString: string, fromModule: InputModule) => {
       let ret: InputModule|undefined = undefined
-      const attempt = (what: typeof ret) => { if (!ret) ret = what }
+      const attempt = (what: () => typeof ret) => { if (!ret) ret = what() }
       const normalizePath = (path: string) => path.split("/").reduce((a,c) => 
           (c === ".") ? a : 
           (c === ".." && a.length) ? a.slice(0, a.length - 1) : 
           (c === "..") ? (()=>{throw `Invalid path: '${path}'`})() : 
           [...a, c], 
         [] as string[]).join("/")
-      const attemptPath = (path: string) => attempt(this.modulesToBundle.find(x => x.key === normalizePath(path)))
+      const attemptPath = (path: string) => attempt(() => this.modulesToBundle.find(x => x.key === normalizePath(path)))
       const attemptPathWithExts = (path: string) => { [path, path + ".js", path + "/index.js"].forEach(attemptPath) }
       if (pathString.startsWith("./") || pathString.startsWith("../")) {
         const getDir = (path: string) => path.split("/").slice(0, path.split("/").length - 1).join("/")
