@@ -15,9 +15,9 @@ try {
 function expressApp(customMiddleware) {
   const express = require('express')
   const app = express()
+  app.use((req,res,next) => (console.info(req.method + ":", req.path), next()))
   app.use(customMiddleware)
   app.use((req,res,next) => {
-    console.log(req.method + ":", req.path)
     if (req.path.startsWith("/api")) zipCtx.runner.handler(req,res)
     else next()
   })
@@ -48,10 +48,14 @@ const customProvide = (fn2) => {
     plugins: [
       require('vite-plugin-vue2').createVuePlugin(/*options*/),
       customProvide((id,from) => {
-        // console.log("MUST RESOLVE",id,from)
+        console.log("ABOUT TO RESOLVE",id,from)
         let ret = undefined
         const isZipDefFiles = id.split("/_ZIPDEFAULTFILES/")
-        if (isZipDefFiles[1]) ret = fs.readFileSync(resolve(__dirname, "../default-files", isZipDefFiles[1].replace(/\//g, "--")), { encoding: "UTF8" })
+        if (isZipDefFiles[1]) {
+          const filename = resolve(__dirname, "../default-files", isZipDefFiles[1].replace(/\/|\\/g, "--"))
+          if (!fs.existsSync(filename)) console.error("ZIPDEFAULTFILES could not find", id, "at path", filename, "called from", from || "?")
+          else ret = fs.readFileSync(filename, { encoding: "UTF8" })
+        }
         if (id === "/_ZIPFRONTENDSCRIPT") ret = zipCtx.runner.getFrontendScript(true)
         // console.log("--> RETURNING",id, ret && ret.length)
         return ret
