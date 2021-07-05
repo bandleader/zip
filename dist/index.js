@@ -247,7 +247,7 @@ var SimpleBundler = /** @class */ (function () {
             _loop_1(m);
         }
         // Return loader code
-        return "\n      ;(function(){\n        const factories = [\n          " + compiledModules.map(function (m) { return "{\n            key: " + JSON.stringify(m.key) + ",\n            factory: " + m.factoryFuncString + ",\n            main: " + !!m.main + "\n          }"; }).join(",") + "\n        ]\n        const require = " + SimpleBundler._moduleLoader + "(factories)\n        factories.filter(x => x.main).forEach(x => require(x.key)) // Run any 'main' modules\n        return require\n      })()\n    ";
+        return "\n      ;(function(){\n        const factories = [\n          " + compiledModules.map(function (m) { return "{\n            key: " + JSON.stringify(m.key) + ",\n            factory: " + m.factoryFuncString + ",\n            main: " + !!m.main + "\n          }"; }).join(",") + "\n        ]\n        const loadersRequire = " + SimpleBundler._moduleLoader + "(factories)\n        // Immediately run any 'main' modules\n        factories.filter(x => x.main).forEach(x => loadersRequire(x.key)) \n      })()\n    ";
     };
     SimpleBundler.moduleCodeToFactoryFunc = function (jsCode, importCallback) {
         // Optionally resolve calls to `require()` with a different key

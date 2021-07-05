@@ -231,9 +231,9 @@ export class SimpleBundler {
             main: ${!!m.main}
           }`).join(",")}
         ]
-        const require = ${SimpleBundler._moduleLoader}(factories)
-        factories.filter(x => x.main).forEach(x => require(x.key)) // Run any 'main' modules
-        return require
+        const loadersRequire = ${SimpleBundler._moduleLoader}(factories)
+        // Immediately run any 'main' modules
+        factories.filter(x => x.main).forEach(x => loadersRequire(x.key)) 
       })()
     `
   }
