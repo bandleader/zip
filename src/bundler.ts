@@ -227,6 +227,14 @@ export class SimpleBundler {
   }
 
   static moduleCodeToFactoryFunc(jsCode: string, importCallback?: (path: string) => string) {
+    // EXPERIMENTAL: allow ES6 import syntax
+    // default imports: import foo from 'module'
+    jsCode = jsCode.replace(/[ \t]*import ([A-Za-z0-9_]+) from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, (whole,identifier,path)=>`const ${identifier} = require('${path}').default`)
+    // namespaced entire import: import * as foo from 'module'
+    jsCode = jsCode.replace(/[ \t]*import \* as ([A-Za-z0-9_]+) from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, (whole,identifier,path)=>`const ${identifier} = require('${path}')`)
+    // named imports: import { a, b, c } from 'module'
+    jsCode = jsCode.replace(/[ \t]*import \{([A-Za-z0-9_, ]+)\} from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, (whole,imports,path)=>`const { ${imports} } = require('${path}')`)
+
     // Optionally resolve calls to `require()`
     if (importCallback) jsCode = jsCode.replace(/require\([\'\"](.+?)[\'\"]\)/g, (_, path) => importCallback(path))
 
