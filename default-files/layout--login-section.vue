@@ -1,6 +1,6 @@
 <template>
     <span v-if="user" class="d-inline-block text-right" style="font-size: 1.5em">
-        <i class="fa fa-user-circle" style="font-size: 1.2em"></i>
+        <i class="fa fa-user-circle mr-1" style="font-size: 1.2em"></i>
         <b>{{usersName}}</b>
         <br>
         <button type="button" class="btn btn-sm bg-white" style="opacity: 0.7" href="javascript:void(0)" @click="logout">Log out</button>
@@ -14,6 +14,7 @@
 // TODO Support avatarUrl
 // TODO Perhaps cache acct in localStorage for next page run
 // TODO Perhaps store acct in root.me (with Vue.set I think? Might require Vue.observable to be observable)
+// TODO The login/out methods also have to be accessible to the footer etc., and also to the app
 
 const tokenLsKey = "zipAuthToken" 
 export default {
