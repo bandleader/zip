@@ -183,7 +183,8 @@ export class SimpleBundler {
           m.loaded = true
         } catch (ex) {
           m.loading = false
-          throw new Error("Error while running module '" + key + "': " + ex)
+          console.error(`Error while running module '${key}': ${ex}`)
+          throw ex
         }
       }
       return m.exports
