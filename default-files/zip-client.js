@@ -1,6 +1,7 @@
 const Zip = {
     get Graph() { return _zipGraphQuery() }
 }
+window.Zip = Zip
 
 Zip.Utils = {
     asyncLoader(factory, _default) {

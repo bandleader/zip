@@ -36,7 +36,7 @@ type ZipSite = {
   },
   backend?: Record<string, Function>,
 }
-type ZipFile = { data: string }
+type ZipFile = { data: string, isDefault: boolean }
 
 function clearableScheduler() {
   let timeouts: number[] = [], intervals: number[] = []
@@ -58,8 +58,8 @@ export class ZipRunner {
       // Load from package.json
       const root = getPackageRoot(), fs = require('fs')
       site.files = {
-          ...ZipFrontend._filesFromDir(__dirname + "/../default-files", fs),
-          ...ZipFrontend._filesFromDir(root + "/zip-src", fs)
+          ...ZipFrontend._filesFromDir(__dirname + "/../default-files", fs, true),
+          ...ZipFrontend._filesFromDir(root + "/zip-src", fs, false)
       }
       const packageJson = JSON.parse(fs.readFileSync(root + "/package.json")) // require(root + '/package.json')
       const zipConfig = packageJson.zip || {}
@@ -88,14 +88,14 @@ export class ZipRunner {
     return this.site.files[path].data
   }
   
-  getFrontendIndex() {
-    let scriptsToInclude = this.getFrontendScript()
+  getFrontendIndex(newMode = false) {
     let contents = this.getFile("index.html")
     contents = contents.replace(/\{\%siteName\}/g, this.site.siteName)
     contents = contents.replace(/\{\%siteBrand\}/g, this.site.siteBrand || this.site.siteName)
     contents = contents.replace(/\{\%basePath\}/g, this.site.basePath)
     // Inject script
-    contents = contents.replace(/<\/body>/g, `<script>${scriptsToInclude}</script></body>`)
+    const scriptTag = newMode ? `<script src="/_ZIPFRONTENDSCRIPT" type="module"></script>` : `<script>${this.getFrontendScript()}</script>`
+    contents = contents.replace(/<\/body>/g, `${scriptTag}</body>`)
     return contents
   }
 
@@ -158,13 +158,13 @@ export class ZipRunner {
     }
   }
 
-  getFrontendScript() {
+  getFrontendScript(newMode = false) {
     const scripts: string[] = []
     scripts.push(this.getFile("zip-client.js"))
     scripts.push("Zip.Backend = " + this.backendRpc.script) // RPC for backend methods
     scripts.push("Zip.ZipAuth = " + this.authRpc.script) // RPC for auth methods
     const vueFiles = this.site.files // passing extra files won't hurt
-    scripts.push(ZipFrontend.fromMemory(vueFiles, {...this.site, siteBrand: this.site.siteBrand! /* we assigned it in the constructor */ }).script())
+    scripts.push(ZipFrontend.fromMemory(vueFiles, {...this.site, siteBrand: this.site.siteBrand! /* we assigned it in the constructor */ }).script(newMode))
     return scripts.join("\n")
   }
  
@@ -224,21 +224,21 @@ export class ZipFrontend {
     ret.options = options
     return ret
   }
-  static _filesFromDir(localPath: string, fs: any) {
+  static _filesFromDir(localPath: string, fs: any, isDefault: boolean) {
     const ret: Dict<ZipFile> = {}
     for (const file of (fs.readdirSync(localPath) as string[])) {
         const path = `${localPath}/${file}`
         if (fs.statSync(path).isDirectory()) {
-            const loadDir = ZipFrontend._filesFromDir(path, fs)
+            const loadDir = ZipFrontend._filesFromDir(path, fs, isDefault)
             for (const key in loadDir) ret[`${file}/${key}`] = loadDir[key]
         } else {
-            ret[file.replace(/--/g, "/")] = { data: fs.readFileSync(path).toString() }
+            ret[file.replace(/--/g, "/")] = { data: fs.readFileSync(path).toString(), isDefault }
         }
     }
     return ret
   }
-  static fromFilesystem(path: string, fs: any, options: ZipFrontendOptions) {
-    const files = ZipFrontend._filesFromDir(path, fs)
+  static fromFilesystem(path: string, fs: any, options: ZipFrontendOptions, isDefault: boolean) {
+    const files = ZipFrontend._filesFromDir(path, fs, isDefault)
     return ZipFrontend.fromMemory(files, options)
   }
   _allFiles() { 
@@ -259,49 +259,52 @@ export class ZipFrontend {
   }
   _vueModules() {
     return this._vueFiles().map(vueFile => {
-      // Provide a default component name
-      let mutationCode = `exp.name = exp.name || ${JSON.stringify(vueFile.componentKey)}\n`
-      // Provide a default 'route' options key (feel free to override)
-      if (vueFile.autoRoute) mutationCode += `exp.route = exp.route || ${JSON.stringify(vueFile.autoRoute)}\n`
-      
-      return Bundler.VueSfcs.convVueSfcToJsModule(vueFile.data, Bundler.VueSfcs.vueClassTransformerScript(), mutationCode)
+      return Bundler.VueSfcs.convVueSfcToJsModule(vueFile.data, Bundler.VueSfcs.vueClassTransformerScript())
     })
   }
-  script() {
-    const out: string[] = []
-    const vueModules = this._vueModules()
-    out.push(`const vues = [${vueModules.map(vm => Bundler.SimpleBundler.moduleCodeToIife(vm)).join(", ")}]`)
-    // Register the components globally
-    out.push("const registerGlobally = x => Vue.component(x.name, x)")
-    out.push("vues.forEach(registerGlobally)")
-    // Set up routes and call VueRouter
-    out.push(`
-const routes = vues.map((v, i) => ({ path: v.route, component: vues[i] })).filter(x => x.path)
-const router = new VueRouter({
-  routes,
-  base: '${this.options.basePath || "/"}',
-  mode: '${this.options.router?.mode || 'history'}'
-})`)
-    // Call Vue
-    out.push(`
-const vueApp = new Vue({ 
-  el: '#app', 
-  router, 
-  data: { 
-    App: {
-      identity: {
-        showLogin() { alert("TODO") },
-        logout() { alert("TODO") },
-      }
-    }, 
-    siteBrand: ${JSON.stringify(this.options.siteBrand)},
-    navMenuItems: vues.filter(v => v.menuText).map(v => ({ url: v.route, text: v.menuText })),
-    deviceState: { user: null },
-  },
-  created() {
-  }
-})`)
-    // return ";(function(){\n" + out.join("\n") + "\n})()"
-    return out.join("\n")
+
+  script(newMode = false) {
+    const files = this._vueFiles()
+    const lines = (x: (file: typeof files[0], i: number)=>string) => files.map(x).filter(x => x).join("\n")
+    return `
+      // Import the Vue files
+      ${lines((f,i) => newMode
+         ? `import vue${i} from '/${f.isDefault ? '_ZIPDEFAULTFILES/' : ''}${f.path}'` 
+         : `const vue${i} = ${Bundler.SimpleBundler.moduleCodeToIife(Bundler.VueSfcs.convVueSfcToJsModule(f.data, Bundler.VueSfcs.vueClassTransformerScript()))}`
+        )}
+      const vues = [${files.map((_,i) => `vue${i}`)}]
+      
+      // Register all globally
+      ${lines((x, i) => `Vue.component(${JSON.stringify(x.componentKey)}, vue${i})`)}
+
+      // Set up routes
+      ${lines((x,i) => x.autoRoute ? `vue${i}.route = vue${i}.route || ${JSON.stringify(x.autoRoute)}` : "")}
+      const routes = vues.map((x,i) => ({ path: x.route, component: x })).filter(x => x.path)
+      console.log("ROUTES:",routes)
+      const router = new VueRouter({
+        routes,
+        base: '${this.options.basePath || "/"}',
+        mode: '${this.options.router?.mode || 'history'}'
+      })
+
+      // Call Vue
+      const vueApp = new Vue({ 
+        el: '#app', 
+        router, 
+        data: { 
+          App: {
+            identity: {
+              showLogin() { alert("TODO") },
+              logout() { alert("TODO") },
+            }
+          }, 
+          siteBrand: ${JSON.stringify(this.options.siteBrand)},
+          navMenuItems: vues.filter(v => v.menuText).map(v => ({ url: v.route, text: v.menuText })),
+          deviceState: { user: null },
+        },
+        created() {
+        }
+      })
+    `
   }
 }

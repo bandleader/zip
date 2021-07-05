@@ -63,7 +63,7 @@ export class VueSfcs {
     }
 }
 
-function vueClassComponent(opts: Record<string, any>, cl: any) {
+export function vueClassComponent(opts: Record<string, any>, cl: any) {
     if (arguments.length <= 1) { cl = arguments[0]; opts = undefined } // Allow first arg to be omitted
     if (typeof cl === 'object') return cl // This is a regular Vue component, just return
     if (typeof cl !== 'function') throw "VueClassComponent: Expected a class, not " + typeof cl

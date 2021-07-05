@@ -3,6 +3,7 @@ export declare class VueSfcs {
     static vueClassTransformerScript(): string;
     static convVueSfcToJsModule(vueSfcCode: string, classTransformer?: string, customMutationCode?: string): string;
 }
+export declare function vueClassComponent(opts: Record<string, any>, cl: any): any;
 export declare type InputModule = {
     codeString: string;
     key?: string;

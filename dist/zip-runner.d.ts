@@ -15,6 +15,7 @@ declare type ZipSite = {
 };
 declare type ZipFile = {
     data: string;
+    isDefault: boolean;
 };
 export declare class ZipRunner {
     site: ZipSite;
@@ -48,11 +49,11 @@ export declare class ZipRunner {
     };
     constructor(site?: ZipSite);
     getFile(path: string): string;
-    getFrontendIndex(): string;
+    getFrontendIndex(newMode?: boolean): string;
     startBackend(): void;
     get handler(): (req: any, resp: any) => void;
     handleRequest(path: string, req: any, resp: any): void;
-    getFrontendScript(): string;
+    getFrontendScript(newMode?: boolean): string;
 }
 export declare function quickRpc(backend: Record<string, Function>, endpointUrl?: string): {
     script: string;
@@ -73,18 +74,20 @@ export declare class ZipFrontend {
     files: Dict<ZipFile>;
     options: ZipFrontendOptions;
     static fromMemory(files: Dict<ZipFile>, options: ZipFrontendOptions): ZipFrontend;
-    static _filesFromDir(localPath: string, fs: any): Record<string, ZipFile>;
-    static fromFilesystem(path: string, fs: any, options: ZipFrontendOptions): ZipFrontend;
+    static _filesFromDir(localPath: string, fs: any, isDefault: boolean): Record<string, ZipFile>;
+    static fromFilesystem(path: string, fs: any, options: ZipFrontendOptions, isDefault: boolean): ZipFrontend;
     _allFiles(): {
         path: string;
         data: string;
+        isDefault: boolean;
     }[];
     _vueFiles(): {
         autoRoute: string;
         componentKey: string;
         path: string;
         data: string;
+        isDefault: boolean;
     }[];
     _vueModules(): string[];
-    script(): string;
+    script(newMode?: boolean): string;
 }

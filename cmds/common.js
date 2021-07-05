@@ -14,7 +14,7 @@ function getZipContext() {
     const mainZipSrcPath = zipSrcDirectoriesWhereExists[0]
 
     const site = {}
-    const runner = new Zip.default(site)
+    const runner = new Zip.ZipRunner(site)
     return {
         root,
         mainZipSrcPath,
