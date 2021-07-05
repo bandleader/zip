@@ -216,7 +216,7 @@ export class SimpleBundler {
         if (!resolved) throw `'${m.key}': Could not resolve module path '${path}'`
         if (!modulesToCompile.some(x => x.key === resolved.key)) modulesToCompile.push(resolved) // Add the 'require'd module to our list if not already there. Now done by key but was formerly this which didn't detect something imported from two different places: (!modulesToCompile.includes(resolved))
         // TODO: really the pathResolver itself should not bother loading it if they key matches an existing one...
-        return `require('${resolved.key}')`
+        return { key: resolved.key }
       })
       compiledModules.push({...m, factoryFuncString })
     }
@@ -238,19 +238,22 @@ export class SimpleBundler {
     `
   }
 
-  static moduleCodeToFactoryFunc(jsCode: string, importCallback?: (path: string) => string) {
-    // EXPERIMENTAL: allow ES6 import syntax
-    // default imports: import foo from 'module'
-    jsCode = jsCode.replace(/[ \t]*import ([A-Za-z0-9_]+) from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, (whole,identifier,path)=>`const ${identifier} = require('${path}', false).default`)
-    // namespaced entire import: import * as foo from 'module'
-    jsCode = jsCode.replace(/[ \t]*import \* as ([A-Za-z0-9_]+) from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, (whole,identifier,path)=>`const ${identifier} = require('${path}', false)`)
-    // named imports: import { a, b, c } from 'module'
-    jsCode = jsCode.replace(/[ \t]*import \{([A-Za-z0-9_, ]+)\} from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, (whole,imports,path)=>`const { ${imports} } = require('${path}', false)`)
+  static moduleCodeToFactoryFunc(jsCode: string, importCallback?: (path: string) => { key: string }) {
+    // Optionally resolve calls to `require()` with a different key
+    if (importCallback) {
+      const getNewRequire = (path: string, allowDefaultExport = true) => `require(${JSON.stringify(importCallback(path).key)}` + (allowDefaultExport ? ')' : ', false)')
+      jsCode = jsCode.replace(/require\([\'\"](.+?)[\'\"]\)/g, (_, path) => getNewRequire(path))
 
-    // Optionally resolve calls to `require()`
-    if (importCallback) jsCode = jsCode.replace(/require\([\'\"](.+?)[\'\"]\)/g, (_, path) => importCallback(path))
+      // EXPERIMENTAL: also allow ES6 import syntax
+      // default imports: import foo from 'module'
+      jsCode = jsCode.replace(/[ \t]*import ([A-Za-z0-9_]+) from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, (whole,identifier,path)=>`const ${identifier} = ${getNewRequire(path, false)}.default`)
+      // namespaced entire import: import * as foo from 'module'
+      jsCode = jsCode.replace(/[ \t]*import \* as ([A-Za-z0-9_]+) from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, (whole,identifier,path)=>`const ${identifier} = ${getNewRequire(path, false)}`)
+      // named imports: import { a, b, c } from 'module'
+      jsCode = jsCode.replace(/[ \t]*import \{([A-Za-z0-9_, ]+)\} from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, (whole,imports,path)=>`const { ${imports} } = ${getNewRequire(path, false)}`)
+    }
 
-    // Convert ES6 export syntax. For now we only support `export default <expr>`
+    // EXPERIMENTAL: Convert ES6 export syntax. For now we only support `export default <expr>`
     jsCode = jsCode.replace("export default", "module.exports.default = ")
     /* TODO: allow named exports too
         (function(module) { module = module || {}; module.exports = {}; CODE_HERE; return module.exports })
