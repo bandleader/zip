@@ -21,9 +21,9 @@ function expressApp(customMiddleware) {
     if (req.path.startsWith("/api")) zipCtx.runner.handler(req,res)
     else next()
   })
-  app.get("/", (req,res) => res.send(zipCtx.runner.getFrontendIndex(true)))
   app.use(express.static(resolve(zipCtx.root, "static")))
   app.use(express.static(resolve(__dirname, "../default-files/static")))
+  app.get("*", (req,res) => res.send(zipCtx.runner.getFrontendIndex(true)))
   return app
 }
 
