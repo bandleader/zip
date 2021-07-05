@@ -202,7 +202,8 @@ export class SimpleBundler {
       const factoryFuncString = SimpleBundler.moduleCodeToFactoryFunc(m.codeString, path => {
         const resolved = this.pathResolver(path, m)
         if (!resolved) throw `'${m.key}': Could not resolve module path '${path}'`
-        if (!modulesToCompile.includes(resolved)) modulesToCompile.push(resolved) // Add the 'require'd module to our list
+        if (!modulesToCompile.some(x => x.key === resolved.key)) modulesToCompile.push(resolved) // Add the 'require'd module to our list if not already there. Now done by key but was formerly this which didn't detect something imported from two different places: (!modulesToCompile.includes(resolved))
+        // TODO: really the pathResolver itself should not bother loading it if they key matches an existing one...
         return `require('${resolved.key}')`
       })
       compiledModules.push({...m, factoryFuncString })
