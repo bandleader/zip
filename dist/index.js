@@ -252,11 +252,11 @@ var SimpleBundler = /** @class */ (function () {
     SimpleBundler.moduleCodeToFactoryFunc = function (jsCode, importCallback) {
         // EXPERIMENTAL: allow ES6 import syntax
         // default imports: import foo from 'module'
-        jsCode = jsCode.replace(/[ \t]*import ([A-Za-z0-9_]+) from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, function (whole, identifier, path) { return "const " + identifier + " = require('" + path + "').default"; });
+        jsCode = jsCode.replace(/[ \t]*import ([A-Za-z0-9_]+) from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, function (whole, identifier, path) { return "const " + identifier + " = require('" + path + "', false).default"; });
         // namespaced entire import: import * as foo from 'module'
-        jsCode = jsCode.replace(/[ \t]*import \* as ([A-Za-z0-9_]+) from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, function (whole, identifier, path) { return "const " + identifier + " = require('" + path + "')"; });
+        jsCode = jsCode.replace(/[ \t]*import \* as ([A-Za-z0-9_]+) from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, function (whole, identifier, path) { return "const " + identifier + " = require('" + path + "', false)"; });
         // named imports: import { a, b, c } from 'module'
-        jsCode = jsCode.replace(/[ \t]*import \{([A-Za-z0-9_, ]+)\} from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, function (whole, imports, path) { return "const { " + imports + " } = require('" + path + "')"; });
+        jsCode = jsCode.replace(/[ \t]*import \{([A-Za-z0-9_, ]+)\} from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, function (whole, imports, path) { return "const { " + imports + " } = require('" + path + "', false)"; });
         // Optionally resolve calls to `require()`
         if (importCallback)
             jsCode = jsCode.replace(/require\([\'\"](.+?)[\'\"]\)/g, function (_, path) { return importCallback(path); });
@@ -298,7 +298,19 @@ var SimpleBundler = /** @class */ (function () {
     SimpleBundler._moduleLoader = function moduleLoader(factories) {
         var modules = {};
         factories.forEach(function (f) { modules[f.key] = { key: f.key, factory: f.factory, exports: {}, loading: false, loaded: false }; });
-        var require = function (key) {
+        var require = function (key, useDefaultExportIfThereIsOnlyThat) {
+            if (useDefaultExportIfThereIsOnlyThat === void 0) { useDefaultExportIfThereIsOnlyThat = true; }
+            /*
+              Provides a require function for modules to call.
+              ES6-syntax `import` statements will set `useDefaultExportIfThereIsOnlyThat=false` so we return the entire module
+                  (and they will use precise parts of it depending on the type of import statement).
+              Direct calls to `require()` (Node/CommonJS-style) default to true, so that they can easily import ES6 modules
+                  which have only a default export.
+              The downside is that if the ES6 modules adds a named export, the require() won't work anymore.
+                  (If we fixed this by *always* returning the default export if there is one, then it will no longer
+                  be possible for CommonJS require() calls to access a named export where there is a default export.
+                  I believe I got this compromise approach from Rollup.)
+               */
             if (!modules[key])
                 throw "Module not found in bundle: " + key;
             var m = modules[key];
@@ -317,6 +329,8 @@ var SimpleBundler = /** @class */ (function () {
                     throw ex;
                 }
             }
+            if (useDefaultExportIfThereIsOnlyThat && Object.keys(m.exports).length === 1 && ('default' in m.exports))
+                return m.exports.default;
             return m.exports;
         };
         return require;

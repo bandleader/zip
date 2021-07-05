@@ -15,7 +15,7 @@ export declare class SimpleBundler {
     static _moduleLoader: (factories: {
         factory: Function;
         key: string;
-    }[]) => (key: string) => any;
+    }[]) => (key: string, useDefaultExportIfThereIsOnlyThat?: boolean) => any;
     bundle(): string;
     static moduleCodeToFactoryFunc(jsCode: string, importCallback?: (path: string) => string): string;
     static moduleCodeToIife(jsCode: string, useDefaultExportIfAny?: boolean, allowRequire?: boolean): string;

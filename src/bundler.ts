@@ -171,7 +171,18 @@ export class SimpleBundler {
     const modules: Record<string, {key: string, factory: Function, exports: any, loading: boolean, loaded: boolean}> = {}
     factories.forEach(f => { modules[f.key] = { key: f.key, factory: f.factory, exports: {}, loading: false, loaded: false }})
 
-    const require = function (key: string) {
+    const require = function (key: string, useDefaultExportIfThereIsOnlyThat = true) {
+      /* 
+        Provides a require function for modules to call.
+        ES6-syntax `import` statements will set `useDefaultExportIfThereIsOnlyThat=false` so we return the entire module
+            (and they will use precise parts of it depending on the type of import statement).
+        Direct calls to `require()` (Node/CommonJS-style) default to true, so that they can easily import ES6 modules 
+            which have only a default export.
+        The downside is that if the ES6 modules adds a named export, the require() won't work anymore.
+            (If we fixed this by *always* returning the default export if there is one, then it will no longer
+            be possible for CommonJS require() calls to access a named export where there is a default export.
+            I believe I got this compromise approach from Rollup.)        
+         */
       if (!modules[key]) throw "Module not found in bundle: " + key
       const m = modules[key]
       if (m.loading) throw "Circular dependency found when loading module: " + key
@@ -187,6 +198,7 @@ export class SimpleBundler {
           throw ex
         }
       }
+      if (useDefaultExportIfThereIsOnlyThat && Object.keys(m.exports).length === 1 && ('default' in m.exports)) return m.exports.default
       return m.exports
     }
     return require
@@ -229,11 +241,11 @@ export class SimpleBundler {
   static moduleCodeToFactoryFunc(jsCode: string, importCallback?: (path: string) => string) {
     // EXPERIMENTAL: allow ES6 import syntax
     // default imports: import foo from 'module'
-    jsCode = jsCode.replace(/[ \t]*import ([A-Za-z0-9_]+) from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, (whole,identifier,path)=>`const ${identifier} = require('${path}').default`)
+    jsCode = jsCode.replace(/[ \t]*import ([A-Za-z0-9_]+) from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, (whole,identifier,path)=>`const ${identifier} = require('${path}', false).default`)
     // namespaced entire import: import * as foo from 'module'
-    jsCode = jsCode.replace(/[ \t]*import \* as ([A-Za-z0-9_]+) from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, (whole,identifier,path)=>`const ${identifier} = require('${path}')`)
+    jsCode = jsCode.replace(/[ \t]*import \* as ([A-Za-z0-9_]+) from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, (whole,identifier,path)=>`const ${identifier} = require('${path}', false)`)
     // named imports: import { a, b, c } from 'module'
-    jsCode = jsCode.replace(/[ \t]*import \{([A-Za-z0-9_, ]+)\} from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, (whole,imports,path)=>`const { ${imports} } = require('${path}')`)
+    jsCode = jsCode.replace(/[ \t]*import \{([A-Za-z0-9_, ]+)\} from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, (whole,imports,path)=>`const { ${imports} } = require('${path}', false)`)
 
     // Optionally resolve calls to `require()`
     if (importCallback) jsCode = jsCode.replace(/require\([\'\"](.+?)[\'\"]\)/g, (_, path) => importCallback(path))
