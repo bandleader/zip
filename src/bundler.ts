@@ -194,7 +194,7 @@ export class SimpleBundler {
       if (!m.loaded) {
         m.loading = true
         try {
-          m.factory(m, m.exports, loader)
+          m.factory(m, m.exports, loader.requireByKey)
           m.loading = false
           m.loaded = true
         } catch (ex) {
