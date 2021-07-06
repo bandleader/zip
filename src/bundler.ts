@@ -155,7 +155,7 @@ export class SimpleBundler {
   resolveAndAddModule(pathString: string, opts: { fromModuleAtPath?: string, main?: boolean } = {}) {
     const ids = this.resolver(pathString, require('path').dirname(opts.fromModuleAtPath || ""))
     
-    // First, see if any of those IDs are already loaded
+    // First, see if the module was already added, as any of the IDs
     const findAlreadyLoadedModule = this.modulesToBundle.find(mdl => ids.find(id => mdl.key === id))
     if (findAlreadyLoadedModule) {
       if (opts.main) findAlreadyLoadedModule.main = true
