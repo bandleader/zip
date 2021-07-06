@@ -193,60 +193,59 @@ function vueClassComponent(opts, cl) {
 }
 var SimpleBundler = /** @class */ (function () {
     function SimpleBundler() {
-        var _this = this;
         this.modulesToBundle = [];
-        this.pathResolver = function (pathString, fromModule) {
-            var ret = undefined;
-            var attempt = function (what) { if (!ret)
-                ret = what(); };
-            var normalizePath = function (path) { return path.split("/").reduce(function (a, c) {
-                return (c === ".") ? a :
-                    (c === ".." && a.length) ? a.slice(0, a.length - 1) :
-                        (c === "..") ? (function () { throw "Invalid path: '" + path + "'"; })() : __spreadArrays(a, [c]);
-            }, []).join("/"); };
-            var attemptPath = function (path) { return attempt(function () { return _this.modulesToBundle.find(function (x) { return x.key === normalizePath(path); }); }); };
-            var attemptPathWithExts = function (path) { [path, path + ".js", path + "/index.js"].forEach(attemptPath); };
-            if (pathString.startsWith("./") || pathString.startsWith("../")) {
-                var getDir = function (path) { return path.split("/").slice(0, path.split("/").length - 1).join("/"); };
-                var moduleDir = getDir(fromModule.key || "");
-                attemptPathWithExts(moduleDir + "/" + pathString);
-            }
-            else if (pathString.startsWith("/")) {
-                attemptPathWithExts(pathString);
-            }
-            else {
-                throw "Module '" + fromModule.key + "': Unsupported require path scheme '" + pathString + "'";
-            }
-            return ret;
+        this.resolver = function (path, fromPath) {
+            // By default: allow extensions, and normalize paths (so we don't import files twice)
+            // You can override this to allow paths that don't start with /,./,../ to look in node_modules etc.
+            fromPath = fromPath.split("?")[0]; // If the calling module has a querystring, remove it
+            return ["", ".js", "/index.js"].map(function (x) { return require('path').join(fromPath, path + x); });
+        };
+        this.loader = function (idOrNormalizedPath) {
+            // Return a string if you managed to load the code
         };
     }
+    SimpleBundler.prototype.resolveAndAddModule = function (pathString, opts) {
+        var _this = this;
+        if (opts === void 0) { opts = {}; }
+        var ids = this.resolver(pathString, require('path').dirname(opts.fromModuleAtPath || ""));
+        // First, see if any of those IDs are already loaded
+        var findAlreadyLoadedModule = this.modulesToBundle.find(function (mdl) { return ids.find(function (id) { return mdl.key === id; }); });
+        if (findAlreadyLoadedModule) {
+            if (opts.main)
+                findAlreadyLoadedModule.main = true;
+            return findAlreadyLoadedModule;
+        }
+        // Otherwise, see if any loaders can load any of the IDs
+        var foundCode = null;
+        var foundId = ids.find(function (x) { return foundCode = _this.loader(x); });
+        if (typeof foundCode !== 'string')
+            throw "Couldn't resolve path '" + pathString + "' from module '" + (opts.fromModuleAtPath || "");
+        // And create a new module for it
+        var newModule = { codeString: foundCode, key: foundId, main: !!opts.main };
+        this.modulesToBundle.push(newModule);
+        return newModule;
+    };
     SimpleBundler.prototype.bundle = function () {
         var _this = this;
-        var modulesToCompile = this.modulesToBundle.slice();
         var compiledModules = [];
-        var _loop_1 = function (m) {
-            var factoryFuncString = SimpleBundler.moduleCodeToFactoryFunc(m.codeString, function (path) {
-                var resolved = _this.pathResolver(path, m);
-                if (!resolved)
-                    throw "'" + m.key + "': Could not resolve module path '" + path + "'";
-                if (!modulesToCompile.some(function (x) { return x.key === resolved.key; }))
-                    modulesToCompile.push(resolved); // Add the 'require'd module to our list if not already there. Now done by key but was formerly this which didn't detect something imported from two different places: (!modulesToCompile.includes(resolved))
-                // TODO: really the pathResolver itself should not bother loading it if they key matches an existing one...
-                return { key: resolved.key };
+        var _loop_1 = function (i) {
+            var thisModule = this_1.modulesToBundle[i];
+            var factoryFuncString = SimpleBundler.moduleCodeToFactoryFunc(thisModule.codeString, function (path) {
+                var resolvedModule = _this.resolveAndAddModule(path, { fromModuleAtPath: thisModule.key });
+                return { key: resolvedModule.key };
             });
-            compiledModules.push(__assign(__assign({}, m), { factoryFuncString: factoryFuncString }));
+            compiledModules.push(__assign(__assign({}, thisModule), { factoryFuncString: factoryFuncString }));
         };
-        // 'Compile' each module to a factory function, i.e. a function that takes args (module, exports, require) and mutates module.exports
-        // The callback we pass to moduleCodeToFactoryFunc will also resolve calls to require() using our class instances's `pathResolver` function, and will add any 'require'd modules to our list of modules to add to our bundle.
-        for (var _i = 0, modulesToCompile_1 = modulesToCompile; _i < modulesToCompile_1.length; _i++) {
-            var m = modulesToCompile_1[_i];
-            _loop_1(m);
+        var this_1 = this;
+        for (var i = 0; i < this.modulesToBundle.length; i++) {
+            _loop_1(i);
         }
         // Return loader code
-        return "\n      ;(function(){\n        const factories = [\n          " + compiledModules.map(function (m) { return "{\n            key: " + JSON.stringify(m.key) + ",\n            factory: " + m.factoryFuncString + ",\n            main: " + !!m.main + "\n          }"; }).join(",") + "\n        ]\n        const loadersRequire = " + SimpleBundler._moduleLoader + "(factories)\n        // Immediately run any 'main' modules\n        factories.filter(x => x.main).forEach(x => loadersRequire(x.key)) \n      })()\n    ";
+        return "\n      ;(function(){\n        const factories = [\n          " + compiledModules.map(function (m) { return "{\n            key: " + JSON.stringify(m.key) + ",\n            factory: " + m.factoryFuncString + ",\n            main: " + !!m.main + "\n          }"; }).join(",") + "\n        ]\n        const loader = " + SimpleBundler._moduleLoader + "\n        const loadersRequire = loader(factories)\n        // Immediately run any 'main' modules\n        factories.filter(x => x.main).forEach(x => loadersRequire(x.key)) \n      })()\n    ";
     };
     SimpleBundler.moduleCodeToFactoryFunc = function (jsCode, importCallback) {
-        // Optionally resolve calls to `require()` with a different key
+        // A "factory function" is a function that takes args (module, exports, require) and mutates module.exports
+        // The argument `importCallback` lets you trap imports within the code, and optionally change the key
         if (importCallback) {
             var getNewRequire_1 = function (path, allowDefaultExport) {
                 if (allowDefaultExport === void 0) { allowDefaultExport = true; }

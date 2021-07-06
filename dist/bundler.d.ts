@@ -11,7 +11,12 @@ export declare type InputModule = {
 };
 export declare class SimpleBundler {
     modulesToBundle: InputModule[];
-    pathResolver: (pathString: string, fromModule: InputModule) => InputModule | undefined;
+    resolver: (path: string, fromPath: string) => string[];
+    loader: (idOrNormalizedPath: string) => string | void;
+    resolveAndAddModule(pathString: string, opts?: {
+        fromModuleAtPath?: string;
+        main?: boolean;
+    }): InputModule;
     static _moduleLoader: (factories: {
         factory: Function;
         key: string;

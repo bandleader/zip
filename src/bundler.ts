@@ -143,28 +143,33 @@ export function vueClassComponent(opts: Record<string, any>, cl: any) {
 export type InputModule = {codeString: string, key?: string, main?: boolean}
 export class SimpleBundler {
   modulesToBundle: InputModule[] = []
-  pathResolver: (pathString: string, fromModule: InputModule) => InputModule|undefined = 
-    (pathString: string, fromModule: InputModule) => {
-      let ret: InputModule|undefined = undefined
-      const attempt = (what: () => typeof ret) => { if (!ret) ret = what() }
-      const normalizePath = (path: string) => path.split("/").reduce((a,c) => 
-          (c === ".") ? a : 
-          (c === ".." && a.length) ? a.slice(0, a.length - 1) : 
-          (c === "..") ? (()=>{throw `Invalid path: '${path}'`})() : 
-          [...a, c], 
-        [] as string[]).join("/")
-      const attemptPath = (path: string) => attempt(() => this.modulesToBundle.find(x => x.key === normalizePath(path)))
-      const attemptPathWithExts = (path: string) => { [path, path + ".js", path + "/index.js"].forEach(attemptPath) }
-      if (pathString.startsWith("./") || pathString.startsWith("../")) {
-        const getDir = (path: string) => path.split("/").slice(0, path.split("/").length - 1).join("/")
-        const moduleDir = getDir(fromModule.key || "")
-        attemptPathWithExts(moduleDir + "/" + pathString)
-      } else if (pathString.startsWith("/")) {
-        attemptPathWithExts(pathString)
-      } else {
-        throw `Module '${fromModule.key}': Unsupported require path scheme '${pathString}'`
-      }
-      return ret
+  resolver = (path: string, fromPath: string): string[] => {
+    // By default: allow extensions, and normalize paths (so we don't import files twice)
+    // You can override this to allow paths that don't start with /,./,../ to look in node_modules etc.
+    fromPath = fromPath.split("?")[0] // If the calling module has a querystring, remove it
+    return ["", ".js", "/index.js"].map(x => require('path').join(fromPath, path + x))
+  }
+  loader = (idOrNormalizedPath: string): string|void => {
+    // Return a string if you managed to load the code
+  }
+  resolveAndAddModule(pathString: string, opts: { fromModuleAtPath?: string, main?: boolean } = {}) {
+    const ids = this.resolver(pathString, require('path').dirname(opts.fromModuleAtPath || ""))
+    
+    // First, see if any of those IDs are already loaded
+    const findAlreadyLoadedModule = this.modulesToBundle.find(mdl => ids.find(id => mdl.key === id))
+    if (findAlreadyLoadedModule) {
+      if (opts.main) findAlreadyLoadedModule.main = true
+      return findAlreadyLoadedModule
+    }
+
+    // Otherwise, see if any loaders can load any of the IDs
+    let foundCode: string|void = null
+    let foundId = ids.find(x => foundCode = this.loader(x))
+    if (typeof foundCode !== 'string') throw `Couldn't resolve path '${pathString}' from module '${opts.fromModuleAtPath || ""}`
+    // And create a new module for it
+    const newModule = { codeString: foundCode, key: foundId, main: !!opts.main }
+    this.modulesToBundle.push(newModule)
+    return newModule
   }
 
   static _moduleLoader = function moduleLoader(factories: {factory: Function, key: string}[]) {
@@ -205,20 +210,14 @@ export class SimpleBundler {
   }
 
   bundle() {
-    const modulesToCompile = this.modulesToBundle.slice()
     const compiledModules: (InputModule & {factoryFuncString: string})[] = []
-
-    // 'Compile' each module to a factory function, i.e. a function that takes args (module, exports, require) and mutates module.exports
-    // The callback we pass to moduleCodeToFactoryFunc will also resolve calls to require() using our class instances's `pathResolver` function, and will add any 'require'd modules to our list of modules to add to our bundle.
-    for (const m of modulesToCompile) {
-      const factoryFuncString = SimpleBundler.moduleCodeToFactoryFunc(m.codeString, path => {
-        const resolved = this.pathResolver(path, m)
-        if (!resolved) throw `'${m.key}': Could not resolve module path '${path}'`
-        if (!modulesToCompile.some(x => x.key === resolved.key)) modulesToCompile.push(resolved) // Add the 'require'd module to our list if not already there. Now done by key but was formerly this which didn't detect something imported from two different places: (!modulesToCompile.includes(resolved))
-        // TODO: really the pathResolver itself should not bother loading it if they key matches an existing one...
-        return { key: resolved.key }
+    for (let i = 0; i < this.modulesToBundle.length; i++) { // Purposely a simple for loop because the array's length will keep increasing
+      const thisModule = this.modulesToBundle[i]
+      const factoryFuncString = SimpleBundler.moduleCodeToFactoryFunc(thisModule.codeString, path => {
+        const resolvedModule = this.resolveAndAddModule(path, { fromModuleAtPath: thisModule.key })
+        return { key: resolvedModule.key }        
       })
-      compiledModules.push({...m, factoryFuncString })
+      compiledModules.push({ ...thisModule, factoryFuncString })
     }
 
     // Return loader code
@@ -231,7 +230,8 @@ export class SimpleBundler {
             main: ${!!m.main}
           }`).join(",")}
         ]
-        const loadersRequire = ${SimpleBundler._moduleLoader}(factories)
+        const loader = ${SimpleBundler._moduleLoader}
+        const loadersRequire = loader(factories)
         // Immediately run any 'main' modules
         factories.filter(x => x.main).forEach(x => loadersRequire(x.key)) 
       })()
@@ -239,7 +239,9 @@ export class SimpleBundler {
   }
 
   static moduleCodeToFactoryFunc(jsCode: string, importCallback?: (path: string) => { key: string }) {
-    // Optionally resolve calls to `require()` with a different key
+    // A "factory function" is a function that takes args (module, exports, require) and mutates module.exports
+    // The argument `importCallback` lets you trap imports within the code, and optionally change the key
+
     if (importCallback) {
       const getNewRequire = (path: string, allowDefaultExport = true) => `require(${JSON.stringify(importCallback(path).key)}` + (allowDefaultExport ? ')' : ', false)')
       jsCode = jsCode.replace(/require\([\'\"](.+?)[\'\"]\)/g, (_, path) => getNewRequire(path))
