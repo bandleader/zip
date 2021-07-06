@@ -189,7 +189,7 @@ export class SimpleBundler {
             I believe I got this compromise approach from Rollup.)        
          */
       if (!modules[key]) throw "Module not found in bundle: " + key
-      var m = modules[key] // using var to stay compatible with older ES versions
+      const m = modules[key]
       if (m.loading) throw "Circular dependency found when loading module: " + key
       if (!m.loaded) {
         m.loading = true
