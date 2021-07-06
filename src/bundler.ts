@@ -286,13 +286,15 @@ export class SimpleBundler {
     jsCode = `function(module, exports, __requireByKey) {\n${jsCode}\n}`
     return jsCode
   }
-  static moduleCodeToIife(jsCode: string, useDefaultExportIfAny = true, allowRequire = false /* i.e. for external modules */) {
+  static moduleCodeToIife(jsCode: string, useDefaultExportIfThatsAllThereIs = true, allowRequire = false /* i.e. for external modules */) {
+    // IIFE will return the exports object, or the default export if that's all there is and `useDefaultExportIfThatsAllThereIs` is set
     return `(function() {
       const tempModule = { exports: {} }
       const tempFactory = ${SimpleBundler.moduleCodeToFactoryFunc(jsCode)}
       ${allowRequire ? '' : `const require = function() { throw "Error: require() cannot be called when using 'moduleCodeToIife'" }`}
       tempFactory(tempModule, tempModule.exports, undefined) 
-      return ${useDefaultExportIfAny ? 'tempModule.exports.default || ' : ''}tempModule.exports
+      ${useDefaultExportIfThatsAllThereIs ? `if (Object.keys(tempModule.exports) === 1 && ('default' in tempModule.exports)) return tempModule.exports.default` : ''}
+      return tempModule.exports
     })()`
   }  
 }

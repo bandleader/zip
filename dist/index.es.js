@@ -289,10 +289,11 @@ var SimpleBundler = /** @class */ (function () {
         jsCode = "function(module, exports, __requireByKey) {\n" + jsCode + "\n}";
         return jsCode;
     };
-    SimpleBundler.moduleCodeToIife = function (jsCode, useDefaultExportIfAny, allowRequire /* i.e. for external modules */) {
-        if (useDefaultExportIfAny === void 0) { useDefaultExportIfAny = true; }
+    SimpleBundler.moduleCodeToIife = function (jsCode, useDefaultExportIfThatsAllThereIs, allowRequire /* i.e. for external modules */) {
+        if (useDefaultExportIfThatsAllThereIs === void 0) { useDefaultExportIfThatsAllThereIs = true; }
         if (allowRequire === void 0) { allowRequire = false; }
-        return "(function() {\n      const tempModule = { exports: {} }\n      const tempFactory = " + SimpleBundler.moduleCodeToFactoryFunc(jsCode) + "\n      " + (allowRequire ? '' : "const require = function() { throw \"Error: require() cannot be called when using 'moduleCodeToIife'\" }") + "\n      tempFactory(tempModule, tempModule.exports, undefined) \n      return " + (useDefaultExportIfAny ? 'tempModule.exports.default || ' : '') + "tempModule.exports\n    })()";
+        // IIFE will return the exports object, or the default export if that's all there is and `useDefaultExportIfThatsAllThereIs` is set
+        return "(function() {\n      const tempModule = { exports: {} }\n      const tempFactory = " + SimpleBundler.moduleCodeToFactoryFunc(jsCode) + "\n      " + (allowRequire ? '' : "const require = function() { throw \"Error: require() cannot be called when using 'moduleCodeToIife'\" }") + "\n      tempFactory(tempModule, tempModule.exports, undefined) \n      " + (useDefaultExportIfThatsAllThereIs ? "if (Object.keys(tempModule.exports) === 1 && ('default' in tempModule.exports)) return tempModule.exports.default" : '') + "\n      return tempModule.exports\n    })()";
     };
     SimpleBundler._createModuleLoader = function createModuleLoader(factories) {
         var modules = {};
