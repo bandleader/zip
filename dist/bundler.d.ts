@@ -21,7 +21,7 @@ export declare class SimpleBundler {
         factory: Function;
         key: string;
     }[]) => {
-        require: (key: string, useDefaultExportIfThereIsOnlyThat?: boolean) => any;
+        requireByKey: (key: string, useDefaultExportIfThereIsOnlyThat?: boolean) => any;
     };
     bundle(): string;
     static moduleCodeToFactoryFunc(jsCode: string, importCallback?: (path: string) => {

@@ -241,15 +241,15 @@ var SimpleBundler = /** @class */ (function () {
             _loop_1(i);
         }
         // Return loader code
-        return "\n      ;(function(){\n        const factories = [\n          " + compiledModules.map(function (m) { return "{\n            key: " + JSON.stringify(m.key) + ",\n            factory: " + m.factoryFuncString + ",\n            main: " + !!m.main + "\n          }"; }).join(",") + "\n        ]\n        const createModuleLoader = " + SimpleBundler._createModuleLoader + "\n        const loader = createModuleLoader(factories)\n        // Immediately run any 'main' modules\n        factories.filter(x => x.main).forEach(x => loader.require(x.key)) \n      })()\n    ";
+        return "\n      ;(function(){\n        const factories = [\n          " + compiledModules.map(function (m) { return "{\n            key: " + JSON.stringify(m.key) + ",\n            factory: " + m.factoryFuncString + ",\n            main: " + !!m.main + "\n          }"; }).join(",") + "\n        ]\n        const createModuleLoader = " + SimpleBundler._createModuleLoader + "\n        const loader = createModuleLoader(factories)\n        // Immediately run any 'main' modules\n        factories.filter(x => x.main).forEach(x => loader.requireByKey(x.key)) \n      })()\n    ";
     };
     SimpleBundler.moduleCodeToFactoryFunc = function (jsCode, importCallback) {
-        // A "factory function" is a function that takes args (module, exports, require) and mutates module.exports
+        // A "factory function" is a function that takes args (module, exports, __requireByKey) and mutates module.exports (or exports)
         // The argument `importCallback` lets you trap imports within the code (so you can add the module), and optionally change the key
         if (importCallback) {
             var getNewRequire_1 = function (path, allowDefaultExport) {
                 if (allowDefaultExport === void 0) { allowDefaultExport = true; }
-                return "require(" + JSON.stringify(importCallback(path).key) + (allowDefaultExport ? ')' : ', false)');
+                return "__requireByKey(" + JSON.stringify(importCallback(path).key) + (allowDefaultExport ? ')' : ', false)');
             };
             jsCode = jsCode.replace(/require\([\'\"](.+?)[\'\"]\)/g, function (_, path) { return getNewRequire_1(path); });
             // EXPERIMENTAL: also allow ES6 import syntax
@@ -286,19 +286,18 @@ var SimpleBundler = /** @class */ (function () {
         */
         // Wrap in a factory function
         // jsCode = jsCode.split("\n").map(x => `  ${x}`).join("\n") // Optionally: Indent nicely
-        jsCode = "function(module, exports, require) {\n" + jsCode + "\n}";
+        jsCode = "function(module, exports, __requireByKey) {\n" + jsCode + "\n}";
         return jsCode;
     };
-    SimpleBundler.moduleCodeToIife = function (jsCode, useDefaultExportIfAny, allowRequire) {
+    SimpleBundler.moduleCodeToIife = function (jsCode, useDefaultExportIfAny, allowRequire /* i.e. for external modules */) {
         if (useDefaultExportIfAny === void 0) { useDefaultExportIfAny = true; }
         if (allowRequire === void 0) { allowRequire = false; }
-        var require = allowRequire ? "require" : "function() { throw \"Error: require() cannot be called when using 'moduleCodeToIife'\" }";
-        return "(function() {\n      const tempModule = { exports: {} }\n      const tempFactory = " + SimpleBundler.moduleCodeToFactoryFunc(jsCode) + "\n      tempFactory(tempModule, tempModule.exports, " + require + ")\n      return " + (useDefaultExportIfAny ? 'tempModule.exports.default || ' : '') + "tempModule.exports\n    })()";
+        return "(function() {\n      const tempModule = { exports: {} }\n      const tempFactory = " + SimpleBundler.moduleCodeToFactoryFunc(jsCode) + "\n      " + (allowRequire ? '' : "const require = function() { throw \"Error: require() cannot be called when using 'moduleCodeToIife'\" }") + "\n      tempFactory(tempModule, tempModule.exports, undefined) \n      return " + (useDefaultExportIfAny ? 'tempModule.exports.default || ' : '') + "tempModule.exports\n    })()";
     };
     SimpleBundler._createModuleLoader = function createModuleLoader(factories) {
         var modules = {};
         factories.forEach(function (f) { modules[f.key] = { key: f.key, factory: f.factory, exports: {}, loading: false, loaded: false }; });
-        var runtimeRequire = function runtimeRequire(key, useDefaultExportIfThereIsOnlyThat) {
+        var requireByKey = function requireByKey(key, useDefaultExportIfThereIsOnlyThat) {
             if (useDefaultExportIfThereIsOnlyThat === void 0) { useDefaultExportIfThereIsOnlyThat = true; }
             /*
               Provides a require function for modules to call at runtime. It will be passed to them as `require` by the loader.
@@ -313,13 +312,13 @@ var SimpleBundler = /** @class */ (function () {
                */
             if (!modules[key])
                 throw "Module not found in bundle: " + key;
-            var m = modules[key]; // using var to stay compatible with older ES versions
+            var m = modules[key];
             if (m.loading)
                 throw "Circular dependency found when loading module: " + key;
             if (!m.loaded) {
                 m.loading = true;
                 try {
-                    m.factory(m, m.exports, runtimeRequire);
+                    m.factory(m, m.exports, loader);
                     m.loading = false;
                     m.loaded = true;
                 }
@@ -333,7 +332,8 @@ var SimpleBundler = /** @class */ (function () {
                 return m.exports.default;
             return m.exports;
         };
-        return { require: runtimeRequire };
+        var loader = { requireByKey: requireByKey };
+        return loader;
     };
     return SimpleBundler;
 }());

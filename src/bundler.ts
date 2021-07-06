@@ -176,7 +176,7 @@ export class SimpleBundler {
     const modules: Record<string, {key: string, factory: Function, exports: any, loading: boolean, loaded: boolean}> = {}
     factories.forEach(f => { modules[f.key] = { key: f.key, factory: f.factory, exports: {}, loading: false, loaded: false }})
 
-    const runtimeRequire = function runtimeRequire (key: string, useDefaultExportIfThereIsOnlyThat = true) {
+    const requireByKey = function requireByKey (key: string, useDefaultExportIfThereIsOnlyThat = true) {
       /* 
         Provides a require function for modules to call at runtime. It will be passed to them as `require` by the loader.
         ES6-syntax `import` statements will set `useDefaultExportIfThereIsOnlyThat=false` so we return the entire module
@@ -194,7 +194,7 @@ export class SimpleBundler {
       if (!m.loaded) {
         m.loading = true
         try {
-          m.factory(m, m.exports, runtimeRequire)
+          m.factory(m, m.exports, loader)
           m.loading = false
           m.loaded = true
         } catch (ex) {
@@ -206,7 +206,8 @@ export class SimpleBundler {
       if (useDefaultExportIfThereIsOnlyThat && Object.keys(m.exports).length === 1 && ('default' in m.exports)) return m.exports.default
       return m.exports
     }
-    return { require: runtimeRequire }
+    const loader = { requireByKey: requireByKey }
+    return loader
   }
 
   bundle() {
@@ -233,17 +234,17 @@ export class SimpleBundler {
         const createModuleLoader = ${SimpleBundler._createModuleLoader}
         const loader = createModuleLoader(factories)
         // Immediately run any 'main' modules
-        factories.filter(x => x.main).forEach(x => loader.require(x.key)) 
+        factories.filter(x => x.main).forEach(x => loader.requireByKey(x.key)) 
       })()
     `
   }
 
   static moduleCodeToFactoryFunc(jsCode: string, importCallback?: (path: string) => { key: string }) {
-    // A "factory function" is a function that takes args (module, exports, require) and mutates module.exports
+    // A "factory function" is a function that takes args (module, exports, __requireByKey) and mutates module.exports (or exports)
     // The argument `importCallback` lets you trap imports within the code (so you can add the module), and optionally change the key
 
     if (importCallback) {
-      const getNewRequire = (path: string, allowDefaultExport = true) => `require(${JSON.stringify(importCallback(path).key)}` + (allowDefaultExport ? ')' : ', false)')
+      const getNewRequire = (path: string, allowDefaultExport = true) => `__requireByKey(${JSON.stringify(importCallback(path).key)}` + (allowDefaultExport ? ')' : ', false)')
       jsCode = jsCode.replace(/require\([\'\"](.+?)[\'\"]\)/g, (_, path) => getNewRequire(path))
 
       // EXPERIMENTAL: also allow ES6 import syntax
@@ -282,15 +283,15 @@ export class SimpleBundler {
     
     // Wrap in a factory function
     // jsCode = jsCode.split("\n").map(x => `  ${x}`).join("\n") // Optionally: Indent nicely
-    jsCode = `function(module, exports, require) {\n${jsCode}\n}`
+    jsCode = `function(module, exports, __requireByKey) {\n${jsCode}\n}`
     return jsCode
   }
-  static moduleCodeToIife(jsCode: string, useDefaultExportIfAny = true, allowRequire = false) {
-    const require = allowRequire ? "require" : `function() { throw "Error: require() cannot be called when using 'moduleCodeToIife'" }`
+  static moduleCodeToIife(jsCode: string, useDefaultExportIfAny = true, allowRequire = false /* i.e. for external modules */) {
     return `(function() {
       const tempModule = { exports: {} }
       const tempFactory = ${SimpleBundler.moduleCodeToFactoryFunc(jsCode)}
-      tempFactory(tempModule, tempModule.exports, ${require})
+      ${allowRequire ? '' : `const require = function() { throw "Error: require() cannot be called when using 'moduleCodeToIife'" }`}
+      tempFactory(tempModule, tempModule.exports, undefined) 
       return ${useDefaultExportIfAny ? 'tempModule.exports.default || ' : ''}tempModule.exports
     })()`
   }  
