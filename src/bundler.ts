@@ -150,7 +150,7 @@ export class SimpleBundler {
     return ["", ".js", "/index.js"].map(x => require('path').join(fromPath, path + x))
   }
   loader = (idOrNormalizedPath: string): string|void => {
-    // Return a string if you managed to load the code
+    // Return a string if you managed to load the code. We expect you to override this method if the code you're bundling uses modules that you aren't pre-adding to the list
   }
   resolveAndAddModule(pathString: string, opts: { fromModuleAtPath?: string, main?: boolean } = {}) {
     const ids = this.resolver(pathString, require('path').dirname(opts.fromModuleAtPath || ""))
