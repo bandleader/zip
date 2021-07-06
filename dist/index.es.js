@@ -241,11 +241,11 @@ var SimpleBundler = /** @class */ (function () {
             _loop_1(i);
         }
         // Return loader code
-        return "\n      ;(function(){\n        const factories = [\n          " + compiledModules.map(function (m) { return "{\n            key: " + JSON.stringify(m.key) + ",\n            factory: " + m.factoryFuncString + ",\n            main: " + !!m.main + "\n          }"; }).join(",") + "\n        ]\n        const loader = " + SimpleBundler._moduleLoader + "\n        const loadersRequire = loader(factories)\n        // Immediately run any 'main' modules\n        factories.filter(x => x.main).forEach(x => loadersRequire(x.key)) \n      })()\n    ";
+        return "\n      ;(function(){\n        const factories = [\n          " + compiledModules.map(function (m) { return "{\n            key: " + JSON.stringify(m.key) + ",\n            factory: " + m.factoryFuncString + ",\n            main: " + !!m.main + "\n          }"; }).join(",") + "\n        ]\n        const createModuleLoader = " + SimpleBundler._createModuleLoader + "\n        const loader = createModuleLoader(factories)\n        // Immediately run any 'main' modules\n        factories.filter(x => x.main).forEach(x => loader.require(x.key)) \n      })()\n    ";
     };
     SimpleBundler.moduleCodeToFactoryFunc = function (jsCode, importCallback) {
         // A "factory function" is a function that takes args (module, exports, require) and mutates module.exports
-        // The argument `importCallback` lets you trap imports within the code, and optionally change the key
+        // The argument `importCallback` lets you trap imports within the code (so you can add the module), and optionally change the key
         if (importCallback) {
             var getNewRequire_1 = function (path, allowDefaultExport) {
                 if (allowDefaultExport === void 0) { allowDefaultExport = true; }
@@ -295,13 +295,13 @@ var SimpleBundler = /** @class */ (function () {
         var require = allowRequire ? "require" : "function() { throw \"Error: require() cannot be called when using 'moduleCodeToIife'\" }";
         return "(function() {\n      const tempModule = { exports: {} }\n      const tempFactory = " + SimpleBundler.moduleCodeToFactoryFunc(jsCode) + "\n      tempFactory(tempModule, tempModule.exports, " + require + ")\n      return " + (useDefaultExportIfAny ? 'tempModule.exports.default || ' : '') + "tempModule.exports\n    })()";
     };
-    SimpleBundler._moduleLoader = function moduleLoader(factories) {
+    SimpleBundler._createModuleLoader = function createModuleLoader(factories) {
         var modules = {};
         factories.forEach(function (f) { modules[f.key] = { key: f.key, factory: f.factory, exports: {}, loading: false, loaded: false }; });
-        var require = function (key, useDefaultExportIfThereIsOnlyThat) {
+        var runtimeRequire = function runtimeRequire(key, useDefaultExportIfThereIsOnlyThat) {
             if (useDefaultExportIfThereIsOnlyThat === void 0) { useDefaultExportIfThereIsOnlyThat = true; }
             /*
-              Provides a require function for modules to call.
+              Provides a require function for modules to call at runtime. It will be passed to them as `require` by the loader.
               ES6-syntax `import` statements will set `useDefaultExportIfThereIsOnlyThat=false` so we return the entire module
                   (and they will use precise parts of it depending on the type of import statement).
               Direct calls to `require()` (Node/CommonJS-style) default to true, so that they can easily import ES6 modules
@@ -313,27 +313,27 @@ var SimpleBundler = /** @class */ (function () {
                */
             if (!modules[key])
                 throw "Module not found in bundle: " + key;
-            var m = modules[key];
+            var m = modules[key]; // using var to stay compatible with older ES versions
             if (m.loading)
                 throw "Circular dependency found when loading module: " + key;
             if (!m.loaded) {
                 m.loading = true;
                 try {
-                    m.factory(m, m.exports, require);
+                    m.factory(m, m.exports, runtimeRequire);
                     m.loading = false;
                     m.loaded = true;
                 }
                 catch (ex) {
                     m.loading = false;
                     console.error("Error while running module '" + key + "': " + ex);
-                    throw ex;
+                    throw ex; // Rethrow original exception to preserve stack trace in most browsers
                 }
             }
             if (useDefaultExportIfThereIsOnlyThat && Object.keys(m.exports).length === 1 && ('default' in m.exports))
                 return m.exports.default;
             return m.exports;
         };
-        return require;
+        return { require: runtimeRequire };
     };
     return SimpleBundler;
 }());

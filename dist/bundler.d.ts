@@ -17,10 +17,12 @@ export declare class SimpleBundler {
         fromModuleAtPath?: string;
         main?: boolean;
     }): InputModule;
-    static _moduleLoader: (factories: {
+    static _createModuleLoader: (factories: {
         factory: Function;
         key: string;
-    }[]) => (key: string, useDefaultExportIfThereIsOnlyThat?: boolean) => any;
+    }[]) => {
+        require: (key: string, useDefaultExportIfThereIsOnlyThat?: boolean) => any;
+    };
     bundle(): string;
     static moduleCodeToFactoryFunc(jsCode: string, importCallback?: (path: string) => {
         key: string;

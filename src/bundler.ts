@@ -172,13 +172,13 @@ export class SimpleBundler {
     return newModule
   }
 
-  static _moduleLoader = function moduleLoader(factories: {factory: Function, key: string}[]) {
+  static _createModuleLoader = function createModuleLoader(factories: {factory: Function, key: string}[]) {
     const modules: Record<string, {key: string, factory: Function, exports: any, loading: boolean, loaded: boolean}> = {}
     factories.forEach(f => { modules[f.key] = { key: f.key, factory: f.factory, exports: {}, loading: false, loaded: false }})
 
-    const require = function (key: string, useDefaultExportIfThereIsOnlyThat = true) {
+    const runtimeRequire = function runtimeRequire (key: string, useDefaultExportIfThereIsOnlyThat = true) {
       /* 
-        Provides a require function for modules to call.
+        Provides a require function for modules to call at runtime. It will be passed to them as `require` by the loader.
         ES6-syntax `import` statements will set `useDefaultExportIfThereIsOnlyThat=false` so we return the entire module
             (and they will use precise parts of it depending on the type of import statement).
         Direct calls to `require()` (Node/CommonJS-style) default to true, so that they can easily import ES6 modules 
@@ -189,24 +189,24 @@ export class SimpleBundler {
             I believe I got this compromise approach from Rollup.)        
          */
       if (!modules[key]) throw "Module not found in bundle: " + key
-      const m = modules[key]
+      var m = modules[key] // using var to stay compatible with older ES versions
       if (m.loading) throw "Circular dependency found when loading module: " + key
       if (!m.loaded) {
         m.loading = true
         try {
-          m.factory(m, m.exports, require)
+          m.factory(m, m.exports, runtimeRequire)
           m.loading = false
           m.loaded = true
         } catch (ex) {
           m.loading = false
           console.error(`Error while running module '${key}': ${ex}`)
-          throw ex
+          throw ex // Rethrow original exception to preserve stack trace in most browsers
         }
       }
       if (useDefaultExportIfThereIsOnlyThat && Object.keys(m.exports).length === 1 && ('default' in m.exports)) return m.exports.default
       return m.exports
     }
-    return require
+    return { require: runtimeRequire }
   }
 
   bundle() {
@@ -230,17 +230,17 @@ export class SimpleBundler {
             main: ${!!m.main}
           }`).join(",")}
         ]
-        const loader = ${SimpleBundler._moduleLoader}
-        const loadersRequire = loader(factories)
+        const createModuleLoader = ${SimpleBundler._createModuleLoader}
+        const loader = createModuleLoader(factories)
         // Immediately run any 'main' modules
-        factories.filter(x => x.main).forEach(x => loadersRequire(x.key)) 
+        factories.filter(x => x.main).forEach(x => loader.require(x.key)) 
       })()
     `
   }
 
   static moduleCodeToFactoryFunc(jsCode: string, importCallback?: (path: string) => { key: string }) {
     // A "factory function" is a function that takes args (module, exports, require) and mutates module.exports
-    // The argument `importCallback` lets you trap imports within the code, and optionally change the key
+    // The argument `importCallback` lets you trap imports within the code (so you can add the module), and optionally change the key
 
     if (importCallback) {
       const getNewRequire = (path: string, allowDefaultExport = true) => `require(${JSON.stringify(importCallback(path).key)}` + (allowDefaultExport ? ')' : ', false)')
