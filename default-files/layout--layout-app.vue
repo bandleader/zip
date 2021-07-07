@@ -30,15 +30,17 @@
         </nav>
       </div>
     </header>
-    <main class="container" style="min-height: calc(100vh - 248px); margin: 2em 0">
+    <main class="container" style="margin: 2em 0">
       <slot />
     </main>
-    <footer style="padding: 1em; margin-top: 1em; background: #444" class="text-light">
-      <h5><router-link to="/" class="text-light">© {{$root.siteBrand}} 2020</router-link></h5>
-      <p class="text-muted">Another great thing made with Zip</p>
-      <p v-if="$root.deviceState.user">Logged in as <b>{{$root.deviceState.user.name || 'Anonymous'}}</b> -- <a href="javascript:void(0)" @click="$root.App.identity.logout">log out</a></p>
-      <p v-else><a href="javascript:void(0)" @click="$root.App.identity.showLogin">Log in</a></p>
+    <!--
+    <footer style="padding: 1em; margin-top: 1em; background: #444; min-height: 8.5em; text-transform: uppercase" class="text-light">
+      <h3><router-link to="/" class="text-light">{{$root.siteBrand}}</router-link></h3>
+        <p class="text-muted">Another great thing made with Zip</p>
+        <p v-if="$root.deviceState.user">Logged in as <b>{{$root.deviceState.user.name || 'Anonymous'}}</b> -- <a href="javascript:void(0)" @click="$root.App.identity.logout">log out</a></p>
+        <p v-else><a href="javascript:void(0)" @click="$root.App.identity.showLogin">Log in</a></p>
     </footer>
+    -->
   </div>
 </template>  
 
