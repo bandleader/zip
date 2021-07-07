@@ -296,20 +296,21 @@ var SimpleBundler = /** @class */ (function () {
         jsCode = "function(module, exports, __requireByKey) {\n" + jsCode + "\n}";
         return jsCode;
     };
-    SimpleBundler.moduleCodeToIife = function (jsCode, useDefaultExportIfThatsAllThereIs, allowRequire /* i.e. for external modules */) {
-        if (useDefaultExportIfThatsAllThereIs === void 0) { useDefaultExportIfThatsAllThereIs = true; }
+    SimpleBundler.moduleCodeToIife = function (jsCode, useDefaultExportIfNoNamedExports, allowRequire /* i.e. for external modules */) {
+        if (useDefaultExportIfNoNamedExports === void 0) { useDefaultExportIfNoNamedExports = true; }
         if (allowRequire === void 0) { allowRequire = false; }
         // IIFE will return the exports object, or the default export if that's all there is and `useDefaultExportIfThatsAllThereIs` is set
-        return "(function() {\n      var tempModule = { exports: {} }\n      var tempFactory = " + SimpleBundler.moduleCodeToFactoryFunc(jsCode) + "\n      " + (allowRequire ? '' : "var require = function() { throw \"Error: require() cannot be called when using 'moduleCodeToIife'\" }") + "\n      tempFactory(tempModule, tempModule.exports, undefined) \n      " + (useDefaultExportIfThatsAllThereIs ? "if (Object.keys(tempModule.exports).length === 1 && ('default' in tempModule.exports)) return tempModule.exports.default" : '') + "\n      return tempModule.exports\n    })()";
+        // Re: `useDefaultExportIfNoNamedExports`, see its definition in `requireByKey`
+        return "(function() {\n      var tempModule = { exports: {} }\n      var tempFactory = " + SimpleBundler.moduleCodeToFactoryFunc(jsCode) + "\n      " + (allowRequire ? '' : "var require = function() { throw \"Error: require() cannot be called when using 'moduleCodeToIife'\" }") + "\n      tempFactory(tempModule, tempModule.exports, undefined) \n      " + (useDefaultExportIfNoNamedExports ? "if (Object.keys(tempModule.exports).length === 1 && ('default' in tempModule.exports)) return tempModule.exports.default" : '') + "\n      return tempModule.exports\n    })()";
     };
     SimpleBundler._createModuleLoader = function createModuleLoader(factories) {
         var modules = {};
         factories.forEach(function (f) { modules[f.key] = { key: f.key, factory: f.factory, exports: {}, loading: false, loaded: false }; });
-        var requireByKey = function requireByKey(key, useDefaultExportIfThereIsOnlyThat) {
-            if (useDefaultExportIfThereIsOnlyThat === void 0) { useDefaultExportIfThereIsOnlyThat = true; }
+        var requireByKey = function requireByKey(key, useDefaultExportIfNoNamedExports) {
+            if (useDefaultExportIfNoNamedExports === void 0) { useDefaultExportIfNoNamedExports = true; }
             /*
               Provides a require function for modules to call at runtime. It will be passed to them as `require` by the loader.
-              ES6-syntax `import` statements will set `useDefaultExportIfThereIsOnlyThat=false` so we return the entire module
+              ES6-syntax `import` statements will set `useDefaultExportIfNoNamedExports=false` so we return the entire module
                   (and they will use precise parts of it depending on the type of import statement).
               Direct calls to `require()` (Node/CommonJS-style) default to true, so that they can easily import ES6 modules
                   which have only a default export.
@@ -336,7 +337,7 @@ var SimpleBundler = /** @class */ (function () {
                     throw ex; // Rethrow original exception to preserve stack trace in most browsers
                 }
             }
-            if (useDefaultExportIfThereIsOnlyThat && Object.keys(m.exports).length === 1 && ('default' in m.exports))
+            if (useDefaultExportIfNoNamedExports && Object.keys(m.exports).length === 1 && ('default' in m.exports))
                 return m.exports.default;
             return m.exports;
         };

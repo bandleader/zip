@@ -24,12 +24,12 @@ export declare class SimpleBundler {
         factory: Function;
         key: string;
     }[]) => {
-        requireByKey: (key: string, useDefaultExportIfThereIsOnlyThat?: boolean) => any;
+        requireByKey: (key: string, useDefaultExportIfNoNamedExports?: boolean) => any;
     };
     bundle(): string;
     static moduleCodeToFactoryFunc(jsCode: string, importCallback?: (path: string) => {
         key: string;
     }): string;
-    static moduleCodeToIife(jsCode: string, useDefaultExportIfThatsAllThereIs?: boolean, allowRequire?: boolean): string;
+    static moduleCodeToIife(jsCode: string, useDefaultExportIfNoNamedExports?: boolean, allowRequire?: boolean): string;
 }
 export declare function evalEx(exprCode: string, customScope?: {}): any;
