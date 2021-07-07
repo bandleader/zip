@@ -90,8 +90,9 @@ function initZipSrc() {
         console.info("🥁 Creating `zip-src`...")
         fs.mkdirSync("./zip-src")
         fs.mkdirSync("./zip-src/pages")
+        fs.mkdirSync("./zip-src/static")
         fs.mkdirSync("./zip-src/components")
-        fs.writeFileSync("./zip-src/pages/Home.vue", fs.readFileSync(__dirname + "/../default-files/pages--Home.vue"))
+        fs.writeFileSync("./zip-src/pages/home.vue", fs.readFileSync(__dirname + "/../default-files/pages/home.vue"))
     }
 }
     

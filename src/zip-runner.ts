@@ -271,7 +271,7 @@ export class ZipFrontend {
     const minusExt = (fileName: string) => fileName.substr(0, fileName.lastIndexOf("."))
     return this.files.getFiles().filter(f => f.path.endsWith(".vue")).map(f => {
       const autoRoute = 
-        f.path === "pages/Home.vue" ? "/"
+        f.path === "pages/home.vue" ? "/"
         : f.path.startsWith('pages/') ? ('/' + minusExt(f.path.substr(6)).replace(/__/g, ':')) 
         : null
       const componentKey = minusExt(getFileName(f.path)).replace(/[^a-zA-Z0-9א-ת]+/g, "-")

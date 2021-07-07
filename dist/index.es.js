@@ -947,7 +947,7 @@ var ZipFrontend = /** @class */ (function () {
         var getFileName = function (path) { return path.split("/")[path.split("/").length - 1]; };
         var minusExt = function (fileName) { return fileName.substr(0, fileName.lastIndexOf(".")); };
         return this.files.getFiles().filter(function (f) { return f.path.endsWith(".vue"); }).map(function (f) {
-            var autoRoute = f.path === "pages/Home.vue" ? "/"
+            var autoRoute = f.path === "pages/home.vue" ? "/"
                 : f.path.startsWith('pages/') ? ('/' + minusExt(f.path.substr(6)).replace(/__/g, ':'))
                     : null;
             var componentKey = minusExt(getFileName(f.path)).replace(/[^a-zA-Z0-9א-ת]+/g, "-");
