@@ -297,7 +297,7 @@ export class SimpleBundler {
       var tempFactory = ${SimpleBundler.moduleCodeToFactoryFunc(jsCode)}
       ${allowRequire ? '' : `var require = function() { throw "Error: require() cannot be called when using 'moduleCodeToIife'" }`}
       tempFactory(tempModule, tempModule.exports, undefined) 
-      ${useDefaultExportIfThatsAllThereIs ? `if (Object.keys(tempModule.exports) === 1 && ('default' in tempModule.exports)) return tempModule.exports.default` : ''}
+      ${useDefaultExportIfThatsAllThereIs ? `if (Object.keys(tempModule.exports).length === 1 && ('default' in tempModule.exports)) return tempModule.exports.default` : ''}
       return tempModule.exports
     })()`
   }  

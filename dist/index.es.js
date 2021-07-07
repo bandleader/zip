@@ -300,7 +300,7 @@ var SimpleBundler = /** @class */ (function () {
         if (useDefaultExportIfThatsAllThereIs === void 0) { useDefaultExportIfThatsAllThereIs = true; }
         if (allowRequire === void 0) { allowRequire = false; }
         // IIFE will return the exports object, or the default export if that's all there is and `useDefaultExportIfThatsAllThereIs` is set
-        return "(function() {\n      var tempModule = { exports: {} }\n      var tempFactory = " + SimpleBundler.moduleCodeToFactoryFunc(jsCode) + "\n      " + (allowRequire ? '' : "var require = function() { throw \"Error: require() cannot be called when using 'moduleCodeToIife'\" }") + "\n      tempFactory(tempModule, tempModule.exports, undefined) \n      " + (useDefaultExportIfThatsAllThereIs ? "if (Object.keys(tempModule.exports) === 1 && ('default' in tempModule.exports)) return tempModule.exports.default" : '') + "\n      return tempModule.exports\n    })()";
+        return "(function() {\n      var tempModule = { exports: {} }\n      var tempFactory = " + SimpleBundler.moduleCodeToFactoryFunc(jsCode) + "\n      " + (allowRequire ? '' : "var require = function() { throw \"Error: require() cannot be called when using 'moduleCodeToIife'\" }") + "\n      tempFactory(tempModule, tempModule.exports, undefined) \n      " + (useDefaultExportIfThatsAllThereIs ? "if (Object.keys(tempModule.exports).length === 1 && ('default' in tempModule.exports)) return tempModule.exports.default" : '') + "\n      return tempModule.exports\n    })()";
     };
     SimpleBundler._createModuleLoader = function createModuleLoader(factories) {
         var modules = {};
