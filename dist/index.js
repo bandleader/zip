@@ -3,6 +3,7 @@
 Object.defineProperty(exports, '__esModule', { value: true });
 
 var Crypto = require('crypto');
+var fs = require('fs');
 
 /*! *****************************************************************************
 Copyright (c) Microsoft Corporation.
@@ -254,22 +255,59 @@ var SimpleBundler = /** @class */ (function () {
         // Return loader code
         return "\n      ;(function(){\n        const factories = [\n          " + compiledModules.map(function (m) { return "{\n            key: " + JSON.stringify(m.key) + ",\n            factory: " + m.factoryFuncString + ",\n            main: " + !!m.main + "\n          }"; }).join(",") + "\n        ]\n        const createModuleLoader = " + SimpleBundler._createModuleLoader + "\n        const loader = createModuleLoader(factories)\n        // Immediately run any 'main' modules\n        factories.filter(x => x.main).forEach(x => loader.requireByKey(x.key)) \n      })()\n    ";
     };
+    /* WAS DOING THIS MOSTLY TO ALLOW caller not to go ahead with the import
+      however I realized that for this to be useful we have to give that power to `resolver`,
+      meaning it should be allowed to return a { external: true } or something
+      And also, `resolveAndAddModule` would have to sometimes return null, if the resolver says so
+      And that somewhat complicates things
+      Another approach is to add the module to the list, just mark it external, so we don't include it in the bundle
+       */
     SimpleBundler.moduleCodeToFactoryFunc = function (jsCode, importCallback) {
         // A "factory function" is a function that takes args (module, exports, __requireByKey) and mutates module.exports (or exports)
         // The argument `importCallback` lets you trap imports within the code (so you can add the module), and optionally change the key
         if (importCallback) {
-            var getNewRequire_1 = function (path, allowDefaultExport) {
-                if (allowDefaultExport === void 0) { allowDefaultExport = true; }
-                return "__requireByKey(" + JSON.stringify(importCallback(path).key) + (allowDefaultExport ? ')' : ', false)');
+            var performReplacements = function (regExp, getPath, newSyntax) {
+                jsCode = jsCode.replace(regExp, function () {
+                    var args = [];
+                    for (var _i = 0; _i < arguments.length; _i++) {
+                        args[_i] = arguments[_i];
+                    }
+                    var path = getPath(args);
+                    var importResult = importCallback(path);
+                    if (!importResult)
+                        return args[0]; // If the importCallback doesn't wish to convert this import (i.e. it's for an external module etc.), leave it as is
+                    return newSyntax(importResult.key, args);
+                });
             };
-            jsCode = jsCode.replace(/require\([\'\"](.+?)[\'\"]\)/g, function (_, path) { return getNewRequire_1(path); });
+            performReplacements(/require\([\'\"](.+?)[\'\"]\)/g, function (_a) {
+                var _ = _a[0], path = _a[1];
+                return path;
+            }, function (key) { return "__requireByKey(" + JSON.stringify(key) + ")"; });
             // EXPERIMENTAL: also allow ES6 import syntax
             // default imports: import foo from 'module'
-            jsCode = jsCode.replace(/[ \t]*import ([A-Za-z0-9_]+) from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, function (whole, identifier, path) { return "const " + identifier + " = " + getNewRequire_1(path, false) + ".default"; });
+            performReplacements(/[ \t]*import ([A-Za-z0-9_]+) from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, function (_a) {
+                var whole = _a[0], identifier = _a[1], path = _a[2];
+                return path;
+            }, function (key, _a) {
+                var whole = _a[0], identifier = _a[1];
+                return "const " + identifier + " = __requireByKey(" + JSON.stringify(key) + ", false).default";
+            });
             // namespaced entire import: import * as foo from 'module'
-            jsCode = jsCode.replace(/[ \t]*import \* as ([A-Za-z0-9_]+) from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, function (whole, identifier, path) { return "const " + identifier + " = " + getNewRequire_1(path, false); });
+            performReplacements(/[ \t]*import \* as ([A-Za-z0-9_]+) from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, function (_a) {
+                var whole = _a[0], identifier = _a[1], path = _a[2];
+                return path;
+            }, function (key, _a) {
+                var whole = _a[0], identifier = _a[1];
+                return "const " + identifier + " = __requireByKey(" + JSON.stringify(key) + ", false)";
+            });
             // named imports: import { a, b, c } from 'module'
-            jsCode = jsCode.replace(/[ \t]*import \{([A-Za-z0-9_, ]+)\} from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, function (whole, imports, path) { return "const { " + imports + " } = " + getNewRequire_1(path, false); });
+            performReplacements(/[ \t]*import \{([A-Za-z0-9_, ]+)\} from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, function (_a) {
+                var whole = _a[0], imports = _a[1], path = _a[2];
+                return path;
+            }, function (key, _a) {
+                var whole = _a[0], imports = _a[1];
+                return "const { " + imports + " } = __requireByKey(" + JSON.stringify(key) + ", false)";
+            });
         }
         // EXPERIMENTAL: Convert ES6 export syntax. For now we only support `export default <expr>`
         jsCode = jsCode.replace("export default", "module.exports.default = ");
@@ -672,17 +710,80 @@ function getPackageRoot() {
     }
     return projRoot;
 }
+function flatMap(array, callbackfn) {
+    var _a;
+    return (_a = Array.prototype).concat.apply(_a, array.map(callbackfn));
+}
+function localFilesystem(root) {
+    var resolve = function () {
+        var _a;
+        var args = [];
+        for (var _i = 0; _i < arguments.length; _i++) {
+            args[_i] = arguments[_i];
+        }
+        return (_a = require('path')).resolve.apply(_a, args).replace(/\\/g, "/");
+    };
+    var localRoot = resolve(root);
+    var getFiles = function (dirPrefix) {
+        if (dirPrefix === void 0) { dirPrefix = ""; }
+        var localDir = resolve(root, dirPrefix);
+        return flatMap(fs.readdirSync(localDir), function (file) {
+            var localPath = localDir + "/" + file;
+            return fs.statSync(localPath).isDirectory()
+                ? getFiles("" + dirPrefix + file + "/")
+                : [{ path: dirPrefix + file, localPath: localPath }];
+        });
+    };
+    var readFileSync = function (path) {
+        var localPath = resolve(root, path);
+        if (!localPath.startsWith(localRoot + "/"))
+            throw "Path " + path + " is below the root";
+        return fs.readFileSync(localPath, { encoding: "utf8" });
+    };
+    // console.log("ADDED FILESYSTEM:",{localRoot,files: getFiles()})
+    return { getFiles: getFiles, readFileSync: readFileSync };
+}
+function multirootFilesystem(fss) {
+    return {
+        getFiles: function () {
+            var all = flatMap(fss, function (x) { return x.getFiles(); });
+            var paths = [];
+            return all.filter(function (x) {
+                if (paths.includes(x.path))
+                    return false;
+                paths.push(x.path);
+                return true;
+            });
+        },
+        readFileSync: function (path) {
+            var firstEx = null;
+            for (var _i = 0, fss_1 = fss; _i < fss_1.length; _i++) {
+                var fs_1 = fss_1[_i];
+                try {
+                    return fs_1.readFileSync(path);
+                }
+                catch (e) {
+                    firstEx = firstEx || e;
+                }
+            }
+            throw firstEx;
+        }
+    };
+}
 var ZipRunner = /** @class */ (function () {
     function ZipRunner(site) {
         if (site === void 0) { site = {}; }
         this.site = site;
         this.auth = Loginner();
         this.authRpc = quickRpc(this.auth.api, "/api/auth");
-        if (!site.files) {
-            // Load from package.json
-            var root = getPackageRoot(), fs = require('fs');
-            site.files = __assign(__assign({}, ZipFrontend._filesFromDir(__dirname + "/../default-files", fs, true)), ZipFrontend._filesFromDir(root + "/zip-src", fs, false));
-            var packageJson = JSON.parse(fs.readFileSync(root + "/package.json")); // require(root + '/package.json')
+        {
+            // Load from filesystem based on package.json root
+            var pkgRoot = getPackageRoot();
+            this.files = multirootFilesystem([
+                localFilesystem(pkgRoot + "/zip-src"),
+                localFilesystem(__dirname + "/../default-files")
+            ]);
+            var packageJson = JSON.parse(fs.readFileSync(pkgRoot + "/package.json", { encoding: "utf8" })); // require(root + '/package.json')
             var zipConfig = packageJson.zip || {};
             for (var k in zipConfig)
                 site[k] = zipConfig[k]; // TODO apply deeply
@@ -702,9 +803,9 @@ var ZipRunner = /** @class */ (function () {
         }
     }
     ZipRunner.prototype.getFile = function (path) {
-        if (!this.site.files[path])
-            throw "File '" + path + "' not found in zip";
-        return this.site.files[path].data;
+        // if (!this.site.files[path]) throw `File '${path}' not found in zip`
+        // return this.site.files[path].data
+        return this.files.readFileSync(path);
     };
     ZipRunner.prototype.getFrontendIndex = function (newMode) {
         if (newMode === void 0) { newMode = false; }
@@ -721,7 +822,7 @@ var ZipRunner = /** @class */ (function () {
         var backend = this.site.backend;
         // Allow using a file in the Zip VFS called `backend.js`
         if (!backend) {
-            var backendModuleText = this.getFile("backend.js");
+            var backendModuleText = this.files.getFiles().some(function (x) { return x.path === "backend.js"; }) ? this.getFile("backend.js") : "";
             // TODO use clearableScheduler
             backend = Bundler.evalEx(Bundler.SimpleBundler.moduleCodeToIife(backendModuleText, undefined, true), { require: require });
             if (typeof backend === 'function')
@@ -785,8 +886,8 @@ var ZipRunner = /** @class */ (function () {
         scripts.push(this.getFile("zip-client.js"));
         scripts.push("Zip.Backend = " + this.backendRpc.script); // RPC for backend methods
         scripts.push("Zip.ZipAuth = " + this.authRpc.script); // RPC for auth methods
-        var vueFiles = this.site.files; // passing extra files won't hurt
-        scripts.push(ZipFrontend.fromMemory(vueFiles, __assign(__assign({}, this.site), { siteBrand: this.site.siteBrand /* we assigned it in the constructor */ })).script(newMode));
+        var vueFiles = this.files; // passing extra files won't hurt
+        scripts.push(new ZipFrontend(vueFiles, __assign(__assign({}, this.site), { siteBrand: this.site.siteBrand /* we assigned it in the constructor */ })).script(newMode));
         return scripts.join("\n");
     };
     return ZipRunner;
@@ -842,44 +943,14 @@ function quickRpc(backend, endpointUrl) {
     return { script: script, handler: handler, setup: setup };
 }
 var ZipFrontend = /** @class */ (function () {
-    function ZipFrontend() {
-        this.files = {};
+    function ZipFrontend(files, options) {
+        this.files = files;
+        this.options = options;
     }
-    ZipFrontend.fromMemory = function (files, options) {
-        var ret = new ZipFrontend();
-        ret.files = files;
-        ret.options = options;
-        return ret;
-    };
-    ZipFrontend._filesFromDir = function (localPath, fs, isDefault) {
-        var ret = {};
-        for (var _i = 0, _a = fs.readdirSync(localPath); _i < _a.length; _i++) {
-            var file = _a[_i];
-            var path = localPath + "/" + file;
-            if (fs.statSync(path).isDirectory()) {
-                var loadDir = ZipFrontend._filesFromDir(path, fs, isDefault);
-                for (var key in loadDir)
-                    ret[file + "/" + key] = loadDir[key];
-            }
-            else {
-                ret[file.replace(/--/g, "/")] = { data: fs.readFileSync(path).toString(), isDefault: isDefault };
-            }
-        }
-        return ret;
-    };
-    ZipFrontend.fromFilesystem = function (path, fs, options, isDefault) {
-        var files = ZipFrontend._filesFromDir(path, fs, isDefault);
-        return ZipFrontend.fromMemory(files, options);
-    };
-    ZipFrontend.prototype._allFiles = function () {
-        var _this = this;
-        // Return as an array instead of an object
-        return Object.keys(this.files).map(function (path) { return (__assign(__assign({}, _this.files[path]), { path: path })); });
-    };
     ZipFrontend.prototype._vueFiles = function () {
         var getFileName = function (path) { return path.split("/")[path.split("/").length - 1]; };
         var minusExt = function (fileName) { return fileName.substr(0, fileName.lastIndexOf(".")); };
-        return this._allFiles().filter(function (f) { return f.path.endsWith(".vue"); }).map(function (f) {
+        return this.files.getFiles().filter(function (f) { return f.path.endsWith(".vue"); }).map(function (f) {
             var autoRoute = f.path === "pages/Home.vue" ? "/"
                 : f.path.startsWith('pages/') ? ('/' + minusExt(f.path.substr(6)).replace(/__/g, ':'))
                     : null;
@@ -888,18 +959,23 @@ var ZipFrontend = /** @class */ (function () {
         });
     };
     ZipFrontend.prototype._vueModules = function () {
+        var _this = this;
         return this._vueFiles().map(function (vueFile) {
-            return Bundler.VueSfcs.convVueSfcToESModule(vueFile.data, { classTransformer: Bundler.VueSfcs.vueClassTransformerScript() });
+            return Bundler.VueSfcs.convVueSfcToESModule(_this.files.readFileSync(vueFile.path), { classTransformer: Bundler.VueSfcs.vueClassTransformerScript() });
         });
     };
     ZipFrontend.prototype.script = function (newMode) {
+        var _this = this;
         if (newMode === void 0) { newMode = false; }
         var _a;
         var files = this._vueFiles();
         var lines = function (x) { return files.map(x).filter(function (x) { return x; }).join("\n"); };
-        return "\n      // Import the Vue files\n      " + lines(function (f, i) { return newMode
-            ? "import vue" + i + " from '/" + (f.isDefault ? '_ZIPDEFAULTFILES/' : '') + f.path + "'"
-            : "const vue" + i + " = " + Bundler.SimpleBundler.moduleCodeToIife(Bundler.VueSfcs.convVueSfcToESModule(f.data, { classTransformer: Bundler.VueSfcs.vueClassTransformerScript() })); }) + "\n      const vues = [" + files.map(function (_, i) { return "vue" + i; }) + "]\n      \n      // Register all globally\n      " + lines(function (x, i) { return "Vue.component(" + JSON.stringify(x.componentKey) + ", vue" + i + ")"; }) + "\n\n      // Set up routes\n      " + lines(function (x, i) { return x.autoRoute ? "vue" + i + ".route = vue" + i + ".route || " + JSON.stringify(x.autoRoute) : ""; }) + "\n      const routes = vues.map((x,i) => ({ path: x.route, component: x })).filter(x => x.path)\n      console.log(\"ROUTES:\",routes)\n      const router = new VueRouter({\n        routes,\n        base: '" + (this.options.basePath || "/") + "',\n        mode: '" + (((_a = this.options.router) === null || _a === void 0 ? void 0 : _a.mode) || 'history') + "'\n      })\n\n      // Call Vue\n      const vueApp = new Vue({ \n        el: '#app', \n        router, \n        data: { \n          App: {\n            identity: {\n              showLogin() { alert(\"TODO\") },\n              logout() { alert(\"TODO\") },\n            }\n          }, \n          siteBrand: " + JSON.stringify(this.options.siteBrand) + ",\n          navMenuItems: vues.filter(v => v.menuText).map(v => ({ url: v.route, text: v.menuText })),\n          deviceState: { user: null },\n        },\n        created() {\n        }\n      })\n    ";
+        return "\n      // Import the Vue files\n      " + lines(function (f, i) {
+            var _a;
+            return newMode
+                ? "import vue" + i + " from '/" + (((_a = f.localPath) === null || _a === void 0 ? void 0 : _a.includes("default-files")) ? '_ZIPDEFAULTFILES/' : '') + f.path + "'"
+                : "const vue" + i + " = " + Bundler.SimpleBundler.moduleCodeToIife(Bundler.VueSfcs.convVueSfcToESModule(_this.files.readFileSync(f.path), { classTransformer: Bundler.VueSfcs.vueClassTransformerScript() }));
+        }) + "\n      const vues = [" + files.map(function (_, i) { return "vue" + i; }) + "]\n      \n      // Register all globally\n      " + lines(function (x, i) { return "Vue.component(" + JSON.stringify(x.componentKey) + ", vue" + i + ")"; }) + "\n\n      // Set up routes\n      " + lines(function (x, i) { return x.autoRoute ? "vue" + i + ".route = vue" + i + ".route || " + JSON.stringify(x.autoRoute) : ""; }) + "\n      const routes = vues.map((x,i) => ({ path: x.route, component: x })).filter(x => x.path)\n      const router = new VueRouter({\n        routes,\n        base: '" + (this.options.basePath || "/") + "',\n        mode: '" + (((_a = this.options.router) === null || _a === void 0 ? void 0 : _a.mode) || 'history') + "'\n      })\n\n      // Call Vue\n      const vueApp = new Vue({ \n        el: '#app', \n        router, \n        data: { \n          App: {\n            identity: {\n              showLogin() { alert(\"TODO\") },\n              logout() { alert(\"TODO\") },\n            }\n          }, \n          siteBrand: " + JSON.stringify(this.options.siteBrand) + ",\n          navMenuItems: vues.filter(v => v.menuText).map(v => ({ url: v.route, text: v.menuText })),\n          deviceState: { user: null },\n        },\n        created() {\n        }\n      })\n    ";
     };
     return ZipFrontend;
 }());

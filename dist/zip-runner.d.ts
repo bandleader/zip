@@ -1,22 +1,24 @@
 import * as _Bundler from './bundler';
 export declare const Bundler: typeof _Bundler;
 export declare function getPackageRoot(): string;
-declare type Dict<T> = Record<string, T>;
 declare type ZipSite = {
     siteName?: string;
     siteBrand?: string;
     app?: any;
-    files?: Dict<ZipFile>;
     basePath?: string;
     router?: {
         mode?: "history" | "hash";
     };
     backend?: Record<string, Function>;
 };
-declare type ZipFile = {
-    data: string;
-    isDefault: boolean;
+declare function localFilesystem(root: string): {
+    getFiles: (dirPrefix?: string) => {
+        path: string;
+        localPath?: string;
+    }[];
+    readFileSync: (path: string) => string;
 };
+declare type LocalFS = ReturnType<typeof localFilesystem>;
 export declare class ZipRunner {
     site: ZipSite;
     backendRpc: ReturnType<typeof quickRpc>;
@@ -47,6 +49,7 @@ export declare class ZipRunner {
             post: Function;
         }) => any;
     };
+    files: LocalFS;
     constructor(site?: ZipSite);
     getFile(path: string): string;
     getFrontendIndex(newMode?: boolean): string;
@@ -71,22 +74,14 @@ declare type ZipFrontendOptions = {
     siteBrand: string;
 };
 export declare class ZipFrontend {
-    files: Dict<ZipFile>;
+    files: LocalFS;
     options: ZipFrontendOptions;
-    static fromMemory(files: Dict<ZipFile>, options: ZipFrontendOptions): ZipFrontend;
-    static _filesFromDir(localPath: string, fs: any, isDefault: boolean): Record<string, ZipFile>;
-    static fromFilesystem(path: string, fs: any, options: ZipFrontendOptions, isDefault: boolean): ZipFrontend;
-    _allFiles(): {
-        path: string;
-        data: string;
-        isDefault: boolean;
-    }[];
+    constructor(files: LocalFS, options: ZipFrontendOptions);
     _vueFiles(): {
         autoRoute: string;
         componentKey: string;
         path: string;
-        data: string;
-        isDefault: boolean;
+        localPath?: string;
     }[];
     _vueModules(): string[];
     script(newMode?: boolean): string;

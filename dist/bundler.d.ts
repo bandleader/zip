@@ -29,7 +29,7 @@ export declare class SimpleBundler {
     bundle(): string;
     static moduleCodeToFactoryFunc(jsCode: string, importCallback?: (path: string) => {
         key: string;
-    }): string;
+    } | void): string;
     static moduleCodeToIife(jsCode: string, useDefaultExportIfNoNamedExports?: boolean, allowRequire?: boolean): string;
 }
 export declare function evalEx(exprCode: string, customScope?: {}): any;

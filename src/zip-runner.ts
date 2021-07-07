@@ -30,7 +30,6 @@ type ZipSite = {
   siteName?: string, 
   siteBrand?: string, 
   app?: any, // For Express
-  files?: Dict<ZipFile>, 
   basePath?: string /*include slashes. default is "/" */,
   router?: {
     mode?: "history"|"hash"
@@ -49,20 +48,68 @@ function clearableScheduler() {
   }
 }
 
+function flatMap<T, U>(array: T[], callbackfn: (value: T, index: number, array: T[]) => U[]): U[] {
+  return Array.prototype.concat(...array.map(callbackfn));
+}
+function localFilesystem(root: string) {
+  const resolve = (...args: string[]): string => require('path').resolve(...args).replace(/\\/g, "/")
+  const localRoot = resolve(root)
+  const getFiles = (dirPrefix = ""): { path: string, localPath?: string }[] => {
+    const localDir = resolve(root, dirPrefix)
+    return flatMap(fs.readdirSync(localDir), file => {
+      const localPath = `${localDir}/${file}`
+      return fs.statSync(localPath).isDirectory()
+        ? getFiles(`${dirPrefix}${file}/`)
+        : [ { path: dirPrefix + file, localPath } ]
+    })
+  }
+  const readFileSync = (path: string) => {
+    const localPath = resolve(root, path)
+    if (!localPath.startsWith(localRoot + "/")) throw `Path ${path} is below the root`
+    return fs.readFileSync(localPath, { encoding: "utf8" })
+  }
+  // console.log("ADDED FILESYSTEM:",{localRoot,files: getFiles()})
+  return { getFiles, readFileSync }
+}
+function multirootFilesystem(fss: LocalFS[]): LocalFS {
+  return {
+    getFiles() {
+      const all = flatMap(fss, x => x.getFiles())
+      const paths: string[] = []
+      return all.filter(x => {
+        if (paths.includes(x.path)) return false
+        paths.push(x.path)
+        return true
+      })
+    },
+    readFileSync(path: string) {
+      let firstEx: any = null
+      for (const fs of fss) {
+        try {
+          return fs.readFileSync(path)
+        } catch (e) { firstEx = firstEx || e }
+      }
+      throw firstEx
+    }
+  }
+}
+
+type LocalFS = ReturnType<typeof localFilesystem>
+
 export class ZipRunner {
   backendRpc: ReturnType<typeof quickRpc>
   auth = Identity.Loginner()
   authRpc = quickRpc(this.auth.api, "/api/auth")
-
+  files: LocalFS
   constructor(public site: ZipSite = {}) { 
-    if (!site.files) {
+    if (true /*no public option for virtual FS yet*/) {
       // Load from filesystem based on package.json root
-      const root = getPackageRoot()
-      site.files = {
-          ...ZipFrontend._filesFromDir(__dirname + "/../default-files", fs, true),
-          ...ZipFrontend._filesFromDir(root + "/zip-src", fs, false)
-      }
-      const packageJson = JSON.parse(fs.readFileSync(root + "/package.json", { encoding: "utf8" })) // require(root + '/package.json')
+      const pkgRoot = getPackageRoot()
+      this.files = multirootFilesystem([
+        localFilesystem(`${pkgRoot}/zip-src`),
+        localFilesystem(`${__dirname}/../default-files`)
+      ])
+      const packageJson = JSON.parse(fs.readFileSync(pkgRoot + "/package.json", { encoding: "utf8" })) // require(root + '/package.json')
       const zipConfig = packageJson.zip || {}
       for (const k in zipConfig) (site as any)[k] = zipConfig[k] // TODO apply deeply
       site.siteName = site.siteName || packageJson.name
@@ -85,8 +132,9 @@ export class ZipRunner {
   }
 
   getFile(path: string) {
-    if (!this.site.files[path]) throw `File '${path}' not found in zip`
-    return this.site.files[path].data
+    // if (!this.site.files[path]) throw `File '${path}' not found in zip`
+    // return this.site.files[path].data
+    return this.files.readFileSync(path)
   }
   
   getFrontendIndex(newMode = false) {
@@ -105,7 +153,7 @@ export class ZipRunner {
     
     // Allow using a file in the Zip VFS called `backend.js`
     if (!backend) {
-      const backendModuleText = this.getFile("backend.js")
+      const backendModuleText = this.files.getFiles().some(x => x.path==="backend.js") ? this.getFile("backend.js") : ""
       // TODO use clearableScheduler
       backend = Bundler.evalEx(Bundler.SimpleBundler.moduleCodeToIife(backendModuleText, undefined, true), { require })
       if (typeof backend === 'function') backend = (backend as any).backend()
@@ -164,8 +212,8 @@ export class ZipRunner {
     scripts.push(this.getFile("zip-client.js"))
     scripts.push("Zip.Backend = " + this.backendRpc.script) // RPC for backend methods
     scripts.push("Zip.ZipAuth = " + this.authRpc.script) // RPC for auth methods
-    const vueFiles = this.site.files // passing extra files won't hurt
-    scripts.push(ZipFrontend.fromMemory(vueFiles, {...this.site, siteBrand: this.site.siteBrand! /* we assigned it in the constructor */ }).script(newMode))
+    const vueFiles = this.files // passing extra files won't hurt
+    scripts.push(new ZipFrontend(vueFiles, {...this.site, siteBrand: this.site.siteBrand! /* we assigned it in the constructor */ }).script(newMode))
     return scripts.join("\n")
   }
  
@@ -217,39 +265,11 @@ export default ZipRunner
 
 type ZipFrontendOptions = { basePath?: string, router?: { mode?: "history"|"hash" }, siteBrand: string }
 export class ZipFrontend {
-  files: Dict<ZipFile> = {}
-  options: ZipFrontendOptions
-  static fromMemory(files: Dict<ZipFile>, options: ZipFrontendOptions) {
-    const ret = new ZipFrontend()
-    ret.files = files
-    ret.options = options
-    return ret
-  }
-  static _filesFromDir(localPath: string, fs: any, isDefault: boolean) {
-    const ret: Dict<ZipFile> = {}
-    for (const file of (fs.readdirSync(localPath) as string[])) {
-        const path = `${localPath}/${file}`
-        if (fs.statSync(path).isDirectory()) {
-            const loadDir = ZipFrontend._filesFromDir(path, fs, isDefault)
-            for (const key in loadDir) ret[`${file}/${key}`] = loadDir[key]
-        } else {
-            ret[file.replace(/--/g, "/")] = { data: fs.readFileSync(path).toString(), isDefault }
-        }
-    }
-    return ret
-  }
-  static fromFilesystem(path: string, fs: any, options: ZipFrontendOptions, isDefault: boolean) {
-    const files = ZipFrontend._filesFromDir(path, fs, isDefault)
-    return ZipFrontend.fromMemory(files, options)
-  }
-  _allFiles() { 
-    // Return as an array instead of an object
-    return Object.keys(this.files).map(path => ({ ...this.files[path], path })) 
-  }
+  constructor(public files: LocalFS, public options: ZipFrontendOptions) { }
   _vueFiles() {
     const getFileName = (path: string) => path.split("/")[path.split("/").length - 1]
     const minusExt = (fileName: string) => fileName.substr(0, fileName.lastIndexOf("."))
-    return this._allFiles().filter(f => f.path.endsWith(".vue")).map(f => {
+    return this.files.getFiles().filter(f => f.path.endsWith(".vue")).map(f => {
       const autoRoute = 
         f.path === "pages/Home.vue" ? "/"
         : f.path.startsWith('pages/') ? ('/' + minusExt(f.path.substr(6)).replace(/__/g, ':')) 
@@ -260,7 +280,7 @@ export class ZipFrontend {
   }
   _vueModules() {
     return this._vueFiles().map(vueFile => {
-      return Bundler.VueSfcs.convVueSfcToESModule(vueFile.data, { classTransformer: Bundler.VueSfcs.vueClassTransformerScript() })
+      return Bundler.VueSfcs.convVueSfcToESModule(this.files.readFileSync(vueFile.path), { classTransformer: Bundler.VueSfcs.vueClassTransformerScript() })
     })
   }
 
@@ -270,8 +290,8 @@ export class ZipFrontend {
     return `
       // Import the Vue files
       ${lines((f,i) => newMode
-         ? `import vue${i} from '/${f.isDefault ? '_ZIPDEFAULTFILES/' : ''}${f.path}'` 
-         : `const vue${i} = ${Bundler.SimpleBundler.moduleCodeToIife(Bundler.VueSfcs.convVueSfcToESModule(f.data, { classTransformer: Bundler.VueSfcs.vueClassTransformerScript() }))}`
+         ? `import vue${i} from '/${f.localPath?.includes("default-files") ? '_ZIPDEFAULTFILES/' : ''}${f.path}'` 
+         : `const vue${i} = ${Bundler.SimpleBundler.moduleCodeToIife(Bundler.VueSfcs.convVueSfcToESModule(this.files.readFileSync(f.path), { classTransformer: Bundler.VueSfcs.vueClassTransformerScript() }))}`
         )}
       const vues = [${files.map((_,i) => `vue${i}`)}]
       
@@ -281,7 +301,6 @@ export class ZipFrontend {
       // Set up routes
       ${lines((x,i) => x.autoRoute ? `vue${i}.route = vue${i}.route || ${JSON.stringify(x.autoRoute)}` : "")}
       const routes = vues.map((x,i) => ({ path: x.route, component: x })).filter(x => x.path)
-      console.log("ROUTES:",routes)
       const router = new VueRouter({
         routes,
         base: '${this.options.basePath || "/"}',
