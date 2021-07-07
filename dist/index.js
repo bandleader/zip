@@ -108,7 +108,7 @@ var VueSfcs = /** @class */ (function () {
             scriptIife = "(" + opts.classTransformer + ")(" + scriptIife + ")";
         var template = getTag("template", vueSfcCode);
         var css = getTag("style", vueSfcCode);
-        var regGlobalCode = typeof opts.registerGlobally === 'string' ? "Vue.component(" + opts.registerGlobally + ", exp)"
+        var regGlobalCode = typeof opts.registerGlobally === 'string' ? "Vue.component(" + JSON.stringify(opts.registerGlobally) + ", exp)"
             : opts.registerGlobally === true ? "Vue.component(exp)" // requires a 'name' property on the component options object
                 : "";
         return "\n            let exp = " + scriptIife + ";\n            exp.template = " + JSON.stringify(template) + "\n            const addTag = (where, tagName, attrs) => {           \n                const el = document.createElement(tagName)\n                for (const k of Object.keys(attrs)) el[k] = attrs[k]\n                where.appendChild(el)\n            }\n            const addCss = css => addTag(document.head, \"style\", { type: 'text/css', innerHTML: css })\n            let alreadyAddedCss = false\n            // TODO remove too\n            const oldCreated = exp.created\n            exp.created = function () {\n                if (!alreadyAddedCss) addCss(" + JSON.stringify(css) + ")\n                alreadyAddedCss = true\n                if (oldCreated) oldCreated.call(this)\n            }\n            " + (opts.customMutationCode || "") + "\n            " + regGlobalCode + "\n            export default exp\n        ";

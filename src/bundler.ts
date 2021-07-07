@@ -40,7 +40,7 @@ export class VueSfcs {
         if (opts.classTransformer) scriptIife = `(${opts.classTransformer})(${scriptIife})`
         const template = getTag("template", vueSfcCode)
         const css = getTag("style", vueSfcCode)
-        const regGlobalCode = typeof opts.registerGlobally === 'string' ? `Vue.component(${opts.registerGlobally}, exp)`
+        const regGlobalCode = typeof opts.registerGlobally === 'string' ? `Vue.component(${JSON.stringify(opts.registerGlobally)}, exp)`
           : opts.registerGlobally === true ? "Vue.component(exp)" // requires a 'name' property on the component options object
           : ""
         return `
