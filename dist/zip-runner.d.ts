@@ -84,5 +84,5 @@ export declare class ZipFrontend {
         localPath?: string;
     }[];
     _vueModules(): string[];
-    script(newMode?: boolean): string;
+    script(newMode?: boolean, vue3?: boolean): string;
 }

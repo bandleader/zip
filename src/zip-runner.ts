@@ -284,20 +284,33 @@ export class ZipFrontend {
     })
   }
 
-  script(newMode = false) {
+  script(newMode = false, vue3 = false) {
     const files = this._vueFiles()
     const lines = (x: (file: typeof files[0], i: number)=>string) => files.map(x).filter(x => x).join("\n")
-    return `
+    let ret = `
       // Import the Vue files
       ${lines((f,i) => newMode
          ? `import vue${i} from '/${f.localPath?.includes("default-files") ? '_ZIPDEFAULTFILES/' : ''}${f.path}'` 
          : `const vue${i} = ${Bundler.SimpleBundler.moduleCodeToIife(Bundler.VueSfcs.convVueSfcToESModule(this.files.readFileSync(f.path), { classTransformer: Bundler.VueSfcs.vueClassTransformerScript() }))}`
         )}
       const vues = [${files.map((_,i) => `vue${i}`)}]
+            
+      `
       
-      // Register all globally
-      ${lines((x, i) => `Vue.component(${JSON.stringify(x.componentKey)}, vue${i})`)}
+      const storeFile = this.files.getFiles().find(x => x.path === "store.ts" || x.path === "store.js")
+      if (storeFile) ret += `
+        ${newMode ? "import store from '/store'" : "const store = " + Bundler.SimpleBundler.moduleCodeToIife(this.files.readFileSync(storeFile.path))}
+        window['store'] = store // To easily reference from JS components without importing
+        Vue.mixin({
+          data() {
+            return {
+              store: store
+            }
+          }
+        })
+      `
 
+      ret += `
       // Set up routes
       ${lines((x,i) => x.autoRoute ? `vue${i}.route = vue${i}.route || ${JSON.stringify(x.autoRoute)}` : "")}
       const routes = vues.map((x,i) => ({ path: x.route, component: x })).filter(x => x.path)
@@ -308,7 +321,7 @@ export class ZipFrontend {
       })
 
       // Call Vue
-      const vueApp = new Vue({ 
+      const vueApp = ${vue3 ? 'Vue.createApp' : 'new Vue'}({ 
         el: '#app', 
         router, 
         data: { 
@@ -325,6 +338,10 @@ export class ZipFrontend {
         created() {
         }
       })
+
+    // Register all globally
+    ${lines((x, i) => (vue3 ? 'app' : 'Vue') + `.component(${JSON.stringify(x.componentKey)}, vue${i})`)}
     `
+    return ret
   }
 }

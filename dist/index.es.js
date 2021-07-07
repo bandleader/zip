@@ -960,18 +960,24 @@ var ZipFrontend = /** @class */ (function () {
             return Bundler.VueSfcs.convVueSfcToESModule(_this.files.readFileSync(vueFile.path), { classTransformer: Bundler.VueSfcs.vueClassTransformerScript() });
         });
     };
-    ZipFrontend.prototype.script = function (newMode) {
+    ZipFrontend.prototype.script = function (newMode, vue3) {
         var _this = this;
         if (newMode === void 0) { newMode = false; }
+        if (vue3 === void 0) { vue3 = false; }
         var _a;
         var files = this._vueFiles();
         var lines = function (x) { return files.map(x).filter(function (x) { return x; }).join("\n"); };
-        return "\n      // Import the Vue files\n      " + lines(function (f, i) {
+        var ret = "\n      // Import the Vue files\n      " + lines(function (f, i) {
             var _a;
             return newMode
                 ? "import vue" + i + " from '/" + (((_a = f.localPath) === null || _a === void 0 ? void 0 : _a.includes("default-files")) ? '_ZIPDEFAULTFILES/' : '') + f.path + "'"
                 : "const vue" + i + " = " + Bundler.SimpleBundler.moduleCodeToIife(Bundler.VueSfcs.convVueSfcToESModule(_this.files.readFileSync(f.path), { classTransformer: Bundler.VueSfcs.vueClassTransformerScript() }));
-        }) + "\n      const vues = [" + files.map(function (_, i) { return "vue" + i; }) + "]\n      \n      // Register all globally\n      " + lines(function (x, i) { return "Vue.component(" + JSON.stringify(x.componentKey) + ", vue" + i + ")"; }) + "\n\n      // Set up routes\n      " + lines(function (x, i) { return x.autoRoute ? "vue" + i + ".route = vue" + i + ".route || " + JSON.stringify(x.autoRoute) : ""; }) + "\n      const routes = vues.map((x,i) => ({ path: x.route, component: x })).filter(x => x.path)\n      const router = new VueRouter({\n        routes,\n        base: '" + (this.options.basePath || "/") + "',\n        mode: '" + (((_a = this.options.router) === null || _a === void 0 ? void 0 : _a.mode) || 'history') + "'\n      })\n\n      // Call Vue\n      const vueApp = new Vue({ \n        el: '#app', \n        router, \n        data: { \n          App: {\n            identity: {\n              showLogin() { alert(\"TODO\") },\n              logout() { alert(\"TODO\") },\n            }\n          }, \n          siteBrand: " + JSON.stringify(this.options.siteBrand) + ",\n          navMenuItems: vues.filter(v => v.menuText).map(v => ({ url: v.route, text: v.menuText })),\n          deviceState: { user: null },\n        },\n        created() {\n        }\n      })\n    ";
+        }) + "\n      const vues = [" + files.map(function (_, i) { return "vue" + i; }) + "]\n            \n      ";
+        var storeFile = this.files.getFiles().find(function (x) { return x.path === "store.ts" || x.path === "store.js"; });
+        if (storeFile)
+            ret += "\n        " + (newMode ? "import store from '/store'" : "const store = " + Bundler.SimpleBundler.moduleCodeToIife(this.files.readFileSync(storeFile.path))) + "\n        window['store'] = store // To easily reference from JS components without importing\n        Vue.mixin({\n          data() {\n            return {\n              store: store\n            }\n          }\n        })\n      ";
+        ret += "\n      // Set up routes\n      " + lines(function (x, i) { return x.autoRoute ? "vue" + i + ".route = vue" + i + ".route || " + JSON.stringify(x.autoRoute) : ""; }) + "\n      const routes = vues.map((x,i) => ({ path: x.route, component: x })).filter(x => x.path)\n      const router = new VueRouter({\n        routes,\n        base: '" + (this.options.basePath || "/") + "',\n        mode: '" + (((_a = this.options.router) === null || _a === void 0 ? void 0 : _a.mode) || 'history') + "'\n      })\n\n      // Call Vue\n      const vueApp = " + (vue3 ? 'Vue.createApp' : 'new Vue') + "({ \n        el: '#app', \n        router, \n        data: { \n          App: {\n            identity: {\n              showLogin() { alert(\"TODO\") },\n              logout() { alert(\"TODO\") },\n            }\n          }, \n          siteBrand: " + JSON.stringify(this.options.siteBrand) + ",\n          navMenuItems: vues.filter(v => v.menuText).map(v => ({ url: v.route, text: v.menuText })),\n          deviceState: { user: null },\n        },\n        created() {\n        }\n      })\n\n    // Register all globally\n    " + lines(function (x, i) { return (vue3 ? 'app' : 'Vue') + (".component(" + JSON.stringify(x.componentKey) + ", vue" + i + ")"); }) + "\n    ";
+        return ret;
     };
     return ZipFrontend;
 }());
