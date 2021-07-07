@@ -27,7 +27,7 @@ export class VueSfcs {
             })()
         `
     }
-    static convVueSfcToJsModule(vueSfcCode: string, opts: { classTransformer?: string, customMutationCode?: string, registerGlobally?: boolean|string } = {}) {
+    static convVueSfcToESModule(vueSfcCode: string, opts: { classTransformer?: string, customMutationCode?: string, registerGlobally?: boolean|string } = {}) {
         const getTag = (tag: string, text: string) => {
         const start = text.indexOf('>', text.indexOf(`<${tag}`,)) + 1
         const end = text.lastIndexOf(`</${tag}>`)

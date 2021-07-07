@@ -1,6 +1,6 @@
 export declare class VueSfcs {
     static vueClassTransformerScript(): string;
-    static convVueSfcToJsModule(vueSfcCode: string, opts?: {
+    static convVueSfcToESModule(vueSfcCode: string, opts?: {
         classTransformer?: string;
         customMutationCode?: string;
         registerGlobally?: boolean | string;

@@ -259,7 +259,7 @@ export class ZipFrontend {
   }
   _vueModules() {
     return this._vueFiles().map(vueFile => {
-      return Bundler.VueSfcs.convVueSfcToJsModule(vueFile.data, { classTransformer: Bundler.VueSfcs.vueClassTransformerScript() })
+      return Bundler.VueSfcs.convVueSfcToESModule(vueFile.data, { classTransformer: Bundler.VueSfcs.vueClassTransformerScript() })
     })
   }
 
@@ -270,7 +270,7 @@ export class ZipFrontend {
       // Import the Vue files
       ${lines((f,i) => newMode
          ? `import vue${i} from '/${f.isDefault ? '_ZIPDEFAULTFILES/' : ''}${f.path}'` 
-         : `const vue${i} = ${Bundler.SimpleBundler.moduleCodeToIife(Bundler.VueSfcs.convVueSfcToJsModule(f.data, { classTransformer: Bundler.VueSfcs.vueClassTransformerScript() }))}`
+         : `const vue${i} = ${Bundler.SimpleBundler.moduleCodeToIife(Bundler.VueSfcs.convVueSfcToESModule(f.data, { classTransformer: Bundler.VueSfcs.vueClassTransformerScript() }))}`
         )}
       const vues = [${files.map((_,i) => `vue${i}`)}]
       

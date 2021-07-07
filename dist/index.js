@@ -91,7 +91,7 @@ var VueSfcs = /** @class */ (function () {
         // In the future we should just include a Zip client JS file which should already be transpiled
         return "\n            (function() {\n                var __assign = function() { \n                    __assign = Object.assign || function __assign(t) {\n                        for (var s, i = 1, n = arguments.length; i < n; i++) {\n                            s = arguments[i];\n                            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p)) t[p] = s[p];\n                        }\n                        return t;\n                    };\n                    return __assign.apply(this, arguments);\n                }\n                return " + vueClassComponent + "\n            })()\n        ";
     };
-    VueSfcs.convVueSfcToJsModule = function (vueSfcCode, opts) {
+    VueSfcs.convVueSfcToESModule = function (vueSfcCode, opts) {
         if (opts === void 0) { opts = {}; }
         var getTag = function (tag, text) {
             var start = text.indexOf('>', text.indexOf("<" + tag)) + 1;
@@ -888,7 +888,7 @@ var ZipFrontend = /** @class */ (function () {
     };
     ZipFrontend.prototype._vueModules = function () {
         return this._vueFiles().map(function (vueFile) {
-            return Bundler.VueSfcs.convVueSfcToJsModule(vueFile.data, { classTransformer: Bundler.VueSfcs.vueClassTransformerScript() });
+            return Bundler.VueSfcs.convVueSfcToESModule(vueFile.data, { classTransformer: Bundler.VueSfcs.vueClassTransformerScript() });
         });
     };
     ZipFrontend.prototype.script = function (newMode) {
@@ -898,7 +898,7 @@ var ZipFrontend = /** @class */ (function () {
         var lines = function (x) { return files.map(x).filter(function (x) { return x; }).join("\n"); };
         return "\n      // Import the Vue files\n      " + lines(function (f, i) { return newMode
             ? "import vue" + i + " from '/" + (f.isDefault ? '_ZIPDEFAULTFILES/' : '') + f.path + "'"
-            : "const vue" + i + " = " + Bundler.SimpleBundler.moduleCodeToIife(Bundler.VueSfcs.convVueSfcToJsModule(f.data, { classTransformer: Bundler.VueSfcs.vueClassTransformerScript() })); }) + "\n      const vues = [" + files.map(function (_, i) { return "vue" + i; }) + "]\n      \n      // Register all globally\n      " + lines(function (x, i) { return "Vue.component(" + JSON.stringify(x.componentKey) + ", vue" + i + ")"; }) + "\n\n      // Set up routes\n      " + lines(function (x, i) { return x.autoRoute ? "vue" + i + ".route = vue" + i + ".route || " + JSON.stringify(x.autoRoute) : ""; }) + "\n      const routes = vues.map((x,i) => ({ path: x.route, component: x })).filter(x => x.path)\n      console.log(\"ROUTES:\",routes)\n      const router = new VueRouter({\n        routes,\n        base: '" + (this.options.basePath || "/") + "',\n        mode: '" + (((_a = this.options.router) === null || _a === void 0 ? void 0 : _a.mode) || 'history') + "'\n      })\n\n      // Call Vue\n      const vueApp = new Vue({ \n        el: '#app', \n        router, \n        data: { \n          App: {\n            identity: {\n              showLogin() { alert(\"TODO\") },\n              logout() { alert(\"TODO\") },\n            }\n          }, \n          siteBrand: " + JSON.stringify(this.options.siteBrand) + ",\n          navMenuItems: vues.filter(v => v.menuText).map(v => ({ url: v.route, text: v.menuText })),\n          deviceState: { user: null },\n        },\n        created() {\n        }\n      })\n    ";
+            : "const vue" + i + " = " + Bundler.SimpleBundler.moduleCodeToIife(Bundler.VueSfcs.convVueSfcToESModule(f.data, { classTransformer: Bundler.VueSfcs.vueClassTransformerScript() })); }) + "\n      const vues = [" + files.map(function (_, i) { return "vue" + i; }) + "]\n      \n      // Register all globally\n      " + lines(function (x, i) { return "Vue.component(" + JSON.stringify(x.componentKey) + ", vue" + i + ")"; }) + "\n\n      // Set up routes\n      " + lines(function (x, i) { return x.autoRoute ? "vue" + i + ".route = vue" + i + ".route || " + JSON.stringify(x.autoRoute) : ""; }) + "\n      const routes = vues.map((x,i) => ({ path: x.route, component: x })).filter(x => x.path)\n      console.log(\"ROUTES:\",routes)\n      const router = new VueRouter({\n        routes,\n        base: '" + (this.options.basePath || "/") + "',\n        mode: '" + (((_a = this.options.router) === null || _a === void 0 ? void 0 : _a.mode) || 'history') + "'\n      })\n\n      // Call Vue\n      const vueApp = new Vue({ \n        el: '#app', \n        router, \n        data: { \n          App: {\n            identity: {\n              showLogin() { alert(\"TODO\") },\n              logout() { alert(\"TODO\") },\n            }\n          }, \n          siteBrand: " + JSON.stringify(this.options.siteBrand) + ",\n          navMenuItems: vues.filter(v => v.menuText).map(v => ({ url: v.route, text: v.menuText })),\n          deviceState: { user: null },\n        },\n        created() {\n        }\n      })\n    ";
     };
     return ZipFrontend;
 }());
