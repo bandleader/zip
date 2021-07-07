@@ -11,6 +11,7 @@ import * as _Bundler from './bundler'
 export const Bundler = _Bundler
 import GraphQueryRunner from './graph'
 import * as Identity from './identity'
+import * as fs from 'fs'
 
 export function getPackageRoot() {
   let projRoot = process.cwd()
@@ -55,13 +56,13 @@ export class ZipRunner {
 
   constructor(public site: ZipSite = {}) { 
     if (!site.files) {
-      // Load from package.json
-      const root = getPackageRoot(), fs = require('fs')
+      // Load from filesystem based on package.json root
+      const root = getPackageRoot()
       site.files = {
           ...ZipFrontend._filesFromDir(__dirname + "/../default-files", fs, true),
           ...ZipFrontend._filesFromDir(root + "/zip-src", fs, false)
       }
-      const packageJson = JSON.parse(fs.readFileSync(root + "/package.json")) // require(root + '/package.json')
+      const packageJson = JSON.parse(fs.readFileSync(root + "/package.json", { encoding: "utf8" })) // require(root + '/package.json')
       const zipConfig = packageJson.zip || {}
       for (const k in zipConfig) (site as any)[k] = zipConfig[k] // TODO apply deeply
       site.siteName = site.siteName || packageJson.name
