@@ -1,12 +1,12 @@
 <template>
-    <span v-if="user" class="d-inline-block text-right" style="font-size: 1.5em">
-        <i class="fa fa-user-circle mr-1" style="font-size: 1.2em"></i>
+    <span v-if="user" class="d-inline-block text-right text-light" style="font-size: 1.5em">
+        <i class="fa fa-user-circle me-2" style="font-size: 1.2em"></i>
         <b>{{usersName}}</b>
         <br>
-        <button type="button" class="btn btn-sm bg-white" style="opacity: 0.7" href="javascript:void(0)" @click="logout">Log out</button>
+        <button type="button" class="btn btn-sm btn-secondary" href="javascript:void(0)" @click="logout">Log out</button>
     </span>
     <span v-else>
-        <button class="btn btn-sm btn-primary" type="button" @click="login">Log in</button>
+        <button class="btn btn-sm btn-secondary" type="button" @click="login">Log in</button>
     </span>
 </template>
 
