@@ -48,13 +48,13 @@ const customProvide = (fn2) => {
     plugins: [
       require('vite-plugin-vue2').createVuePlugin(/*options*/),
       customProvide((id,from) => {
-        console.log("ABOUT TO RESOLVE",id,from)
+        // console.log("ABOUT TO RESOLVE",id,from)
         let ret = undefined
         const isZipDefFiles = id.split("/_ZIPDEFAULTFILES/")
         if (isZipDefFiles[1]) {
           const filename = resolve(__dirname, "../default-files", isZipDefFiles[1])
           if (!fs.existsSync(filename)) console.error("ZIPDEFAULTFILES could not find", id, "at path", filename, "called from", from || "?")
-          else ret = fs.readFileSync(filename, { encoding: "UTF8" })
+          else ret = fs.promises.readFile(filename, { encoding: "UTF8" })
         }
         if (id === "/_ZIPFRONTENDSCRIPT") ret = zipCtx.runner.getFrontendScript(true)
         // console.log("--> RETURNING",id, ret && ret.length)
