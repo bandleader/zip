@@ -1,7 +1,10 @@
 export declare class VueSfcs {
-    static convVueModuleToInitGlobalCode(componentKey: string, jsModuleCode: string): string;
     static vueClassTransformerScript(): string;
-    static convVueSfcToJsModule(vueSfcCode: string, classTransformer?: string, customMutationCode?: string): string;
+    static convVueSfcToJsModule(vueSfcCode: string, opts?: {
+        classTransformer?: string;
+        customMutationCode?: string;
+        registerGlobally?: boolean | string;
+    }): string;
 }
 export declare function vueClassComponent(opts: Record<string, any>, cl: any): any;
 export declare type InputModule = {

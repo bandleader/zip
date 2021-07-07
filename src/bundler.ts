@@ -1,13 +1,13 @@
 type Dict<T> = Record<string, T>
 
 export class VueSfcs {
-    static convVueModuleToInitGlobalCode(componentKey: string, jsModuleCode: string) {
-        return `
-            window.vues = window.vues || {}
-            window.vues['${componentKey}'] = ${SimpleBundler.moduleCodeToIife(jsModuleCode)}
-            Vue.component("${componentKey}", window.vues['${componentKey}']);
-        `
-    }
+    // static convVueModuleToInitGlobalCode(componentKey: string, jsModuleCode: string) {
+    //     return `
+    //         window.vues = window.vues || {}
+    //         window.vues['${componentKey}'] = ${SimpleBundler.moduleCodeToIife(jsModuleCode)}
+    //         Vue.component("${componentKey}", window.vues['${componentKey}']);
+    //     `
+    // }
     static vueClassTransformerScript() {
         // We also include the __assign function replacement for Object.assign, since Rollup is transpiling {...foo} to that.
         // In the future we should just include a Zip client JS file which should already be transpiled
@@ -27,7 +27,7 @@ export class VueSfcs {
             })()
         `
     }
-    static convVueSfcToJsModule(vueSfcCode: string, classTransformer?: string, customMutationCode = "") {
+    static convVueSfcToJsModule(vueSfcCode: string, opts: { classTransformer?: string, customMutationCode?: string, registerGlobally?: boolean|string } = {}) {
         const getTag = (tag: string, text: string) => {
         const start = text.indexOf('>', text.indexOf(`<${tag}`,)) + 1
         const end = text.lastIndexOf(`</${tag}>`)
@@ -37,9 +37,12 @@ export class VueSfcs {
         }
         const scriptModule = getTag("script", vueSfcCode) || "export default {}"
         let scriptIife = SimpleBundler.moduleCodeToIife(scriptModule)
-        if (classTransformer) scriptIife = `(${classTransformer})(${scriptIife})`
+        if (opts.classTransformer) scriptIife = `(${opts.classTransformer})(${scriptIife})`
         const template = getTag("template", vueSfcCode)
         const css = getTag("style", vueSfcCode)
+        const regGlobalCode = typeof opts.registerGlobally === 'string' ? `Vue.component(${opts.registerGlobally}, exp)`
+          : opts.registerGlobally === true ? "Vue.component(exp)" // requires a 'name' property on the component options object
+          : ""
         return `
             let exp = ${scriptIife};
             exp.template = ${JSON.stringify(template)}
@@ -48,7 +51,7 @@ export class VueSfcs {
                 for (const k of Object.keys(attrs)) el[k] = attrs[k]
                 where.appendChild(el)
             }
-            const addCss = css => addTag(document.head, "style", {type: 'text/css', innerHTML: css})                  
+            const addCss = css => addTag(document.head, "style", { type: 'text/css', innerHTML: css })
             let alreadyAddedCss = false
             // TODO remove too
             const oldCreated = exp.created
@@ -57,7 +60,8 @@ export class VueSfcs {
                 alreadyAddedCss = true
                 if (oldCreated) oldCreated.call(this)
             }
-            ${customMutationCode}
+            ${opts.customMutationCode || ""}
+            ${regGlobalCode}
             export default exp
         `
     }
