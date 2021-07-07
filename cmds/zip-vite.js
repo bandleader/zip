@@ -4,13 +4,6 @@ const zipCtx = require('./common.js').getZipContext()
 const port = process.env.PORT || 3000
 const fs = require('fs')
 const { resolve } = require('path')
-let vite;
-try {
-  vite = require("vite")
-} catch {
-  console.error("To use vite, install it first by typing: \n  npm install --save-dev vite vite-plugin-vue2 vue vue-template-compiler")
-  process.exit()
-}
 
 function expressApp(customMiddleware) {
   const express = require('express')
@@ -36,7 +29,27 @@ const customProvide = (fn2) => {
   }
 }
 
+
+function checkAndLoadDeps() {
+  const tryRequire = (moduleName) => { try { return require(moduleName) } catch { return false } }
+  const vers = [
+    { ver: 2, deps: "vite-plugin-vue2 vue-template-compiler", vuePlugin: (opts) => require('vite-plugin-vue2').createVuePlugin(opts) },
+    { ver: 3, deps: "@vitejs/plugin-vue @vue/compiler-sfc", vuePlugin: (opts) => require('@vitejs/plugin-vue').default(opts) }
+  ]
+  const vue = tryRequire("vue"), vite = tryRequire("vite")
+  const bail = (err) => { console.error(err); process.exit(1); throw err /* just in case*/ }
+  if (!vue || !vite) bail(`To use vite, please install dependencies:\n  npm install vue vite ${vers[0].deps}\n  -- OR --\n  npm install vue vite ${vers[1].deps}`)
+  const installedVer = vers.find(x => x.ver === parseInt(vue.version))
+  if (!installedVer) bail("Unrecognized Vue version: " + vue.version)
+  if (installedVer.ver === 3) bail(`We are not set up yet to work with Vue 3. Install Vue 2:\n\n  npm install vue@2 ${vers[0].deps}`)
+  const missingDeps = installedVer.deps.split(" ").filter(x => !tryRequire(x))
+  if (missingDeps.length) bail(`Missing dependencies for Vue ${installedVer.ver}:\n  npm install ${missingDeps.join(" ")}`)
+  // All good!
+  return { version: vue.version, vite, vuePlugin: installedVer.vuePlugin }
+}
+
 ;(async () => {
+  const { vite, vuePlugin } = checkAndLoadDeps()
   const server = await vite.createServer({
     configFile: false,
     root: zipCtx.mainZipSrcPath,
@@ -46,7 +59,7 @@ const customProvide = (fn2) => {
       middlewareMode: true
     },
     plugins: [
-      require('vite-plugin-vue2').createVuePlugin(/*options*/),
+      vuePlugin(/*opts*/),
       customProvide((id,from) => {
         // console.log("ABOUT TO RESOLVE",id,from)
         let ret = undefined
