@@ -1,7 +1,7 @@
 <template>
   <div>
     <layout-header v-if="!noheader" />
-    <main class="container" style="margin: 2em 0; min-height: calc(100vh - 20.1em) /* to keep footer (if shown) closer to the bottom */">
+    <main class="container py-3" style="min-height: calc(100vh - 20.1em) /* to keep footer (if shown) closer to the bottom */">
       <slot />
     </main>
     <layout-footer v-if="!nofooter" />
