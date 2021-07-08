@@ -13,7 +13,7 @@
               <router-link class="nav-link" :to="i.url" active-class="active">{{i.text}}</router-link>
             </li>
           </ul>
-          <span class="d-flex">
+          <span class="d-flex justify-content-right justify-content-end">
             <login-section />
           </span>
         </div>

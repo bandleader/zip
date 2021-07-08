@@ -1,9 +1,11 @@
 <template>
-    <span v-if="user" class="d-inline-block text-right text-light" style="font-size: 1.5em">
-        <i class="fa fa-user-circle me-2" style="font-size: 1.2em"></i>
-        <b>{{usersName}}</b>
-        <br>
-        <button type="button" class="btn btn-sm btn-secondary" href="javascript:void(0)" @click="logout">Log out</button>
+    <span v-if="user" class="d-inline-block text-light" style="line-height: 100%">
+        <div class="mb-1" style="font-size: 1.3em">
+            <i class="fa fa-user-circle me-2"></i>
+            <b>{{usersName}}</b>
+        </div>
+        <!-- <button type="button" class="btn btn-sm btn-secondary" href="javascript:void(0)" @click="logout">Log out</button> -->
+        <a href="javascript:void(0)" @click="logout" class="text-light" style="font-size: 0.85em">Log out</a>
     </span>
     <span v-else>
         <button class="btn btn-sm btn-secondary" type="button" @click="login">Log in</button>
