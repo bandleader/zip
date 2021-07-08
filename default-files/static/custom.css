@@ -1,0 +1,10 @@
+/* Custom CSS for the site can be entered here. */
+
+/* Example for overriding a primary color: */
+/*
+.bg-primary { background: green !important;}
+.btn-primary { background: green !important; border-color: green !important;}
+.text-primary { color: green !important;}
+a { color: green }
+:root { --primary: green }
+*/
