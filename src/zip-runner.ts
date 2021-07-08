@@ -310,8 +310,11 @@ export class ZipFrontend {
         })
       `
 
-      ret += `
+      // Register all globally for Vue2
+      if (!vue3) ret += lines((x, i) => `Vue.component(${JSON.stringify(x.componentKey)}, vue${i})`)
+      
       // Set up routes
+      ret += `
       ${lines((x,i) => x.autoRoute ? `vue${i}.route = vue${i}.route || ${JSON.stringify(x.autoRoute)}` : "")}
       const routes = vues.map((x,i) => ({ path: x.route, component: x })).filter(x => x.path)
       const router = new VueRouter({
@@ -338,10 +341,11 @@ export class ZipFrontend {
         created() {
         }
       })
-
-    // Register all globally
-    ${lines((x, i) => (vue3 ? 'app' : 'Vue') + `.component(${JSON.stringify(x.componentKey)}, vue${i})`)}
     `
+
+    // Register all globally for Vue3
+    if (vue3) ret+= lines((x, i) => `app.component(${JSON.stringify(x.componentKey)}, vue${i})`) 
+
     return ret
   }
 }
