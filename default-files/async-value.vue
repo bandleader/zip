@@ -1,12 +1,12 @@
 <template>
-    <div v-if="info.resolved"><slot v-bind="{value: info.value}" /></div>
-    <div v-else-if="info.error" class="text-danger"><i class="fa fa-exclamation-triangle" /> {{info.error}}</div>
-    <div v-else class="text-center"><div class="spinner-border text-primary" /></div>
+    <div :is="tag||'div'" v-if="info.resolved"><slot v-bind="{value: info.value}" /></div>
+    <div :is="tag||'div'" v-else-if="info.error" class="text-danger"><i class="fa fa-exclamation-triangle" /> {{info.error}}</div>
+    <div :is="tag||'div'" v-else><span class="spinner-border text-primary" /></div>
 </template>
 
 <script>
 export default {
-  props: ['promise'],
+  props: ['promise', 'tag'],
   computed: {
     info() {
       const ret = Vue.observable({
