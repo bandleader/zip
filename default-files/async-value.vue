@@ -1,7 +1,7 @@
 <template>
-    <div :is="tag||'div'" v-if="info.resolved"><slot v-bind="{value: info.value}" /></div>
-    <div :is="tag||'div'" v-else-if="info.error" class="text-danger"><i class="fa fa-exclamation-triangle" /> {{info.error}}</div>
-    <div :is="tag||'div'" v-else><span class="spinner-border text-primary" /></div>
+    <span :is="tag||'span'" :style="tag ? null : 'display: contents'" v-if="info.resolved"><slot v-bind="{value: info.value}" /></span>
+    <span :is="tag||'span'" :style="tag ? null : 'display: contents'" v-else-if="info.error" class="text-danger"><i class="fa fa-exclamation-triangle" /> {{info.error}}</span>
+    <span :is="tag||'span'" :style="tag ? null : 'display: contents'" v-else><span class="spinner-border text-primary" /></span>
 </template>
 
 <script>
