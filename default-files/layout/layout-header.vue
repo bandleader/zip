@@ -1,5 +1,5 @@
 <template>
-  <header>
+  <header style="position: sticky; top: 0">
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
       <div class="container-fluid">
         <router-link class="navbar-brand" to="/">{{$root.siteBrand}}</router-link>
