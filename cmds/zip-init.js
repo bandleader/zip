@@ -28,13 +28,18 @@ console.log("\n🎉 Welcome to Zip Init!")
     if (!fs.existsSync("./.gitignore")) fs.writeFileSync("./.gitignore", `# Just the basics -- feel free to get something more complete at http://gitignore.io\n\nnode_modules\n.data/`)
 
     if (backend) {
-        const backendFile = ts ? "./app.ts" : "./app.js"
+        const backendFile = ts ? "./backend.ts" : "./backend.js"
         const runner = ts ? "ts-node-dev" : "node-dev"
         globDeps.push(runner)
-        package.scripts.serve = runner + " " + backendFile
-        package.dependencies.express = package.dependencies.express || "*"
-        //${backend ? `import backend from './backend'\n` : ''}
-            fs.writeFileSync(backendFile, `
+        package.scripts.serve = runner + " ./backend" //ext unnec'y
+        package.dependencies['github:bandleader/zip'] = package.dependencies['github:bandleader/zip'] || "*"
+        // Don't depend on runner or TS, they are global dependencies, will be asked at end of script
+        // package.dependencies[runner] = package.dependencies[runner] || "*"
+        // if (ts) package.dependencies.typescript = "*"
+        // Express dependency no longer necessary
+        // package.dependencies.express = package.dependencies.express || "*"
+
+        fs.writeFileSync(backendFile, `
 ${ts ? "import * as Zip from 'zip'" : "const Zip = require('zip')"}
 
 // Define your backend API here
