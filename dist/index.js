@@ -310,7 +310,7 @@ var SimpleBundler = /** @class */ (function () {
             });
         }
         // EXPERIMENTAL: Convert ES6 export syntax. For now we only support `export default <expr>`
-        jsCode = jsCode.replace("export default", "module.exports.default = ");
+        jsCode = jsCode.replace(/export default /g, "module.exports.default = ");
         /* TODO: allow named exports too
             (function(module) { module = module || {}; module.exports = {}; CODE_HERE; return module.exports })
         */
