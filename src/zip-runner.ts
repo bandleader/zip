@@ -12,6 +12,7 @@ export const Bundler = _Bundler
 import GraphQueryRunner from './graph'
 import * as Identity from './identity'
 import * as fs from 'fs'
+import * as Express from 'express'
 
 export function getPackageRoot() {
   let projRoot = process.cwd()
@@ -29,14 +30,12 @@ type Dict<T> = Record<string, T>
 type ZipSite = { 
   siteName?: string, 
   siteBrand?: string, 
-  app?: any, // For Express
   basePath?: string /*include slashes. default is "/" */,
   router?: {
     mode?: "history"|"hash"
   },
   backend?: Record<string, Function>,
 }
-type ZipFile = { data: string, isDefault: boolean }
 
 function clearableScheduler() {
   let timeouts: number[] = [], intervals: number[] = []
@@ -122,13 +121,19 @@ export class ZipRunner {
     site.basePath = site.basePath || "/"
     
     this.startBackend()
+  }
 
-    if (site.app) {
-      const express = require('express')
-      site.app.use(express.static("./static"))
-      site.app.use(express.static("./node_modules/zip/default-files/static"))
-      site.app.all("*", this.handler)
-    }
+  serve(opts: { app?: Express.Application, preBind?: (app: Express.Application) => void, port?: number, listen?: boolean } = {}) {
+    const app = opts.app || Express()
+    if (opts.preBind) opts.preBind(app)
+    app.use(Express.static("./zip-src/static"))
+    app.use(Express.static(__dirname + "/../default-files/static"))
+    app.all("*", this.handler)
+    const port = opts.port || process.env.PORT || 3000
+    if (opts.listen !== false) app.listen(port, () => { 
+      console.info(`Your Zip app is listening on http://localhost:${port}`)
+    })
+    return app
   }
 
   getFile(path: string) {

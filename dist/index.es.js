@@ -1,5 +1,7 @@
 import { createHash } from 'crypto';
 import { readFileSync, statSync, readdirSync } from 'fs';
+import * as Express from 'express';
+import { static as static$1 } from 'express';
 
 /*! *****************************************************************************
 Copyright (c) Microsoft Corporation.
@@ -791,13 +793,22 @@ var ZipRunner = /** @class */ (function () {
         site.router = site.router || {};
         site.basePath = site.basePath || "/";
         this.startBackend();
-        if (site.app) {
-            var express = require('express');
-            site.app.use(express.static("./static"));
-            site.app.use(express.static("./node_modules/zip/default-files/static"));
-            site.app.all("*", this.handler);
-        }
     }
+    ZipRunner.prototype.serve = function (opts) {
+        if (opts === void 0) { opts = {}; }
+        var app = opts.app || Express();
+        if (opts.preBind)
+            opts.preBind(app);
+        app.use(static$1("./zip-src/static"));
+        app.use(static$1(__dirname + "/../default-files/static"));
+        app.all("*", this.handler);
+        var port = opts.port || process.env.PORT || 3000;
+        if (opts.listen !== false)
+            app.listen(port, function () {
+                console.info("Your Zip app is listening on http://localhost:" + port);
+            });
+        return app;
+    };
     ZipRunner.prototype.getFile = function (path) {
         // if (!this.site.files[path]) throw `File '${path}' not found in zip`
         // return this.site.files[path].data

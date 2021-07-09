@@ -1,10 +1,10 @@
 import * as _Bundler from './bundler';
 export declare const Bundler: typeof _Bundler;
+import * as Express from 'express';
 export declare function getPackageRoot(): string;
 declare type ZipSite = {
     siteName?: string;
     siteBrand?: string;
-    app?: any;
     basePath?: string;
     router?: {
         mode?: "history" | "hash";
@@ -51,6 +51,12 @@ export declare class ZipRunner {
     };
     files: LocalFS;
     constructor(site?: ZipSite);
+    serve(opts?: {
+        app?: Express.Application;
+        preBind?: (app: Express.Application) => void;
+        port?: number;
+        listen?: boolean;
+    }): Express.Application;
     getFile(path: string): string;
     getFrontendIndex(newMode?: boolean): string;
     startBackend(): void;

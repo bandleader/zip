@@ -35,23 +35,17 @@ console.log("\n🎉 Welcome to Zip Init!")
         package.dependencies.express = package.dependencies.express || "*"
         //${backend ? `import backend from './backend'\n` : ''}
             fs.writeFileSync(backendFile, `
-import * as Express from 'express'
-import * as Zip from 'zip'
+${ts ? "import * as Zip from 'zip'" : "const Zip = require('zip')"}
 
 // Define your backend API here
 const backend = {
     greeting(name${ts ? ': string' : ''}) { return \`Hello, \${name}!\` }
 }
 
-const app = Express()
 const site = new Zip.ZipRunner({
-  app,
   siteName: ${JSON.stringify(zipConfig.siteName)},
 ${backend ? '  backend,\n' : ''}})
-const port = process.env.PORT || 8050
-app.listen(port, () => {
-  console.info(\`Your Zip app is listening on http://localhost:\${port}\`)
-})
+site.serve()
             `)
     } else {
         // No backend
@@ -91,7 +85,7 @@ function initZipSrc() {
         fs.mkdirSync("./zip-src")
         fs.mkdirSync("./zip-src/pages")
         fs.mkdirSync("./zip-src/static")
-        fs.mkdirSync("./zip-src/components")
+        // fs.mkdirSync("./zip-src/components")
         fs.writeFileSync("./zip-src/pages/home.vue", fs.readFileSync(__dirname + "/../default-files/pages/home.vue"))
     }
 }
