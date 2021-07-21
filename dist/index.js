@@ -960,11 +960,20 @@ var ZipFrontend = /** @class */ (function () {
     ZipFrontend.prototype._vueFiles = function () {
         var getFileName = function (path) { return path.split("/")[path.split("/").length - 1]; };
         var minusExt = function (fileName) { return fileName.substr(0, fileName.lastIndexOf(".")); };
-        return this.files.getFiles().filter(function (f) { return f.path.endsWith(".vue"); }).map(function (f) {
+        var usedNames = [];
+        return this.files.getFiles().filter(function (f) { return f.path.endsWith(".vue"); }).map(function (f, i) {
             var autoRoute = f.path === "pages/home.vue" ? "/"
                 : f.path.startsWith('pages/') ? ('/' + minusExt(f.path.substr(6)).replace(/__/g, ':'))
                     : null;
             var componentKey = minusExt(getFileName(f.path)).replace(/[^a-zA-Z0-9א-ת]+/g, "-");
+            // Make name safe and unique
+            if (componentKey.startsWith("-"))
+                componentKey = 'z' + componentKey;
+            if (componentKey.endsWith("-"))
+                componentKey = componentKey + 'z';
+            if (autoRoute && usedNames.includes(componentKey))
+                componentKey += "-" + i;
+            usedNames.push(componentKey);
             return __assign(__assign({}, f), { autoRoute: autoRoute, componentKey: componentKey });
         });
     };

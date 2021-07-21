@@ -274,12 +274,19 @@ export class ZipFrontend {
   _vueFiles() {
     const getFileName = (path: string) => path.split("/")[path.split("/").length - 1]
     const minusExt = (fileName: string) => fileName.substr(0, fileName.lastIndexOf("."))
-    return this.files.getFiles().filter(f => f.path.endsWith(".vue")).map(f => {
+    const usedNames: string[] = []
+    return this.files.getFiles().filter((f) => f.path.endsWith(".vue")).map((f,i) => {
       const autoRoute = 
         f.path === "pages/home.vue" ? "/"
         : f.path.startsWith('pages/') ? ('/' + minusExt(f.path.substr(6)).replace(/__/g, ':')) 
         : null
-      const componentKey = minusExt(getFileName(f.path)).replace(/[^a-zA-Z0-9א-ת]+/g, "-")
+      let componentKey = minusExt(getFileName(f.path)).replace(/[^a-zA-Z0-9א-ת]+/g, "-")
+      // Make componentKey safe and unique
+      if (componentKey.startsWith("-")) componentKey = 'z' + componentKey
+      if (componentKey.endsWith("-")) componentKey = componentKey + 'z'
+      if (autoRoute && usedNames.includes(componentKey)) componentKey += "-" + i
+      usedNames.push(componentKey)
+
       return { ...f, autoRoute, componentKey }
     })
   }
