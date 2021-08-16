@@ -141,14 +141,15 @@ export class ZipRunner {
     // return this.site.files[path].data
     return this.files.readFileSync(path)
   }
+  static mode: "BUNDLER"|"VITE"|"ROLLUP" = "BUNDLER"
   
-  getFrontendIndex(newMode = false) {
+  getFrontendIndex() {
     let contents = this.getFile("index.html")
     contents = contents.replace(/\{\%siteName\}/g, this.site.siteName)
     contents = contents.replace(/\{\%siteBrand\}/g, this.site.siteBrand || this.site.siteName)
     contents = contents.replace(/\{\%basePath\}/g, this.site.basePath)
     // Inject script
-    const scriptTag = newMode ? `<script src="/_ZIPFRONTENDSCRIPT" type="module"></script>` : `<script>${this.getFrontendScript()}</script>`
+    const scriptTag = `<script src="/zip-frontend-generated-code.js" ${ZipRunner.mode === 'BUNDLER' ? '' : 'type="module"'}></script>`
     contents = contents.replace(/<\/body>/g, `${scriptTag}</body>`)
     return contents
   }
@@ -197,6 +198,9 @@ export class ZipRunner {
 
     if (path === "/favicon.ico") {
       resp.send("404 Not Found")
+    } else if (path == "/zip-frontend-generated-code.js") {
+      resp.setHeader('Content-Type', 'text/javascript')
+      resp.send(this.getFrontendScript())
     } else if (path == "/_zipver") {
       resp.send(require('../package.json').version)
     } else if (path === "/api/qrpc") {

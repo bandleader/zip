@@ -6,6 +6,30 @@ var Crypto = require('crypto');
 var fs = require('fs');
 var Express = require('express');
 
+function _interopNamespace(e) {
+    if (e && e.__esModule) return e;
+    var n = Object.create(null);
+    if (e) {
+        Object.keys(e).forEach(function (k) {
+            if (k !== 'default') {
+                var d = Object.getOwnPropertyDescriptor(e, k);
+                Object.defineProperty(n, k, d.get ? d : {
+                    enumerable: true,
+                    get: function () {
+                        return e[k];
+                    }
+                });
+            }
+        });
+    }
+    n['default'] = e;
+    return Object.freeze(n);
+}
+
+var Crypto__namespace = /*#__PURE__*/_interopNamespace(Crypto);
+var fs__namespace = /*#__PURE__*/_interopNamespace(fs);
+var Express__namespace = /*#__PURE__*/_interopNamespace(Express);
+
 /*! *****************************************************************************
 Copyright (c) Microsoft Corporation.
 
@@ -281,32 +305,32 @@ var SimpleBundler = /** @class */ (function () {
                 });
             };
             performReplacements(/require\([\'\"](.+?)[\'\"]\)/g, function (_a) {
-                var _ = _a[0], path = _a[1];
+                _a[0]; var path = _a[1];
                 return path;
             }, function (key) { return "__requireByKey(" + JSON.stringify(key) + ")"; });
             // EXPERIMENTAL: also allow ES6 import syntax
             // default imports: import foo from 'module'
             performReplacements(/[ \t]*import ([A-Za-z0-9_]+) from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, function (_a) {
-                var whole = _a[0], identifier = _a[1], path = _a[2];
+                _a[0]; _a[1]; var path = _a[2];
                 return path;
             }, function (key, _a) {
-                var whole = _a[0], identifier = _a[1];
+                _a[0]; var identifier = _a[1];
                 return "const " + identifier + " = __requireByKey(" + JSON.stringify(key) + ", false).default";
             });
             // namespaced entire import: import * as foo from 'module'
             performReplacements(/[ \t]*import \* as ([A-Za-z0-9_]+) from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, function (_a) {
-                var whole = _a[0], identifier = _a[1], path = _a[2];
+                _a[0]; _a[1]; var path = _a[2];
                 return path;
             }, function (key, _a) {
-                var whole = _a[0], identifier = _a[1];
+                _a[0]; var identifier = _a[1];
                 return "const " + identifier + " = __requireByKey(" + JSON.stringify(key) + ", false)";
             });
             // named imports: import { a, b, c } from 'module'
             performReplacements(/[ \t]*import \{([A-Za-z0-9_, ]+)\} from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, function (_a) {
-                var whole = _a[0], imports = _a[1], path = _a[2];
+                _a[0]; _a[1]; var path = _a[2];
                 return path;
             }, function (key, _a) {
-                var whole = _a[0], imports = _a[1];
+                _a[0]; var imports = _a[1];
                 return "const { " + imports + " } = __requireByKey(" + JSON.stringify(key) + ", false)";
             });
         }
@@ -580,7 +604,7 @@ function Loginner(_opts) {
         me: function (acct) { return __awaiter(_this, void 0, void 0, function () { return __generator(this, function (_a) {
             return [2 /*return*/, ({ name: acct.name, firstName: acct.firstName, lastName: acct.lastName, displayName: acct.displayName })];
         }); }); },
-        hashPassword: function (raw) { return Crypto.createHash('sha256').update(raw).digest('hex'); },
+        hashPassword: function (raw) { return Crypto__namespace.createHash('sha256').update(raw).digest('hex'); },
     };
     var db = {
         users: [],
@@ -728,9 +752,9 @@ function localFilesystem(root) {
     var getFiles = function (dirPrefix) {
         if (dirPrefix === void 0) { dirPrefix = ""; }
         var localDir = resolve(root, dirPrefix);
-        return flatMap(fs.readdirSync(localDir), function (file) {
+        return flatMap(fs__namespace.readdirSync(localDir), function (file) {
             var localPath = localDir + "/" + file;
-            return fs.statSync(localPath).isDirectory()
+            return fs__namespace.statSync(localPath).isDirectory()
                 ? getFiles("" + dirPrefix + file + "/")
                 : [{ path: dirPrefix + file, localPath: localPath }];
         });
@@ -739,7 +763,7 @@ function localFilesystem(root) {
         var localPath = resolve(root, path);
         if (!localPath.startsWith(localRoot + "/"))
             throw "Path " + path + " is below the root";
-        return fs.readFileSync(localPath, { encoding: "utf8" });
+        return fs__namespace.readFileSync(localPath, { encoding: "utf8" });
     };
     // console.log("ADDED FILESYSTEM:",{localRoot,files: getFiles()})
     return { getFiles: getFiles, readFileSync: readFileSync };
@@ -784,7 +808,7 @@ var ZipRunner = /** @class */ (function () {
                 localFilesystem(pkgRoot + "/zip-src"),
                 localFilesystem(__dirname + "/../default-files")
             ]);
-            var packageJson = JSON.parse(fs.readFileSync(pkgRoot + "/package.json", { encoding: "utf8" })); // require(root + '/package.json')
+            var packageJson = JSON.parse(fs__namespace.readFileSync(pkgRoot + "/package.json", { encoding: "utf8" })); // require(root + '/package.json')
             var zipConfig = packageJson.zip || {};
             for (var k in zipConfig)
                 site[k] = zipConfig[k]; // TODO apply deeply
@@ -799,11 +823,11 @@ var ZipRunner = /** @class */ (function () {
     }
     ZipRunner.prototype.serve = function (opts) {
         if (opts === void 0) { opts = {}; }
-        var app = opts.app || Express();
+        var app = opts.app || Express__namespace();
         if (opts.preBind)
             opts.preBind(app);
-        app.use(Express.static("./zip-src/static"));
-        app.use(Express.static(__dirname + "/../default-files/static"));
+        app.use(Express__namespace.static("./zip-src/static"));
+        app.use(Express__namespace.static(__dirname + "/../default-files/static"));
         app.all("*", this.handler);
         var port = opts.port || process.env.PORT || 3000;
         if (opts.listen !== false)
@@ -817,14 +841,13 @@ var ZipRunner = /** @class */ (function () {
         // return this.site.files[path].data
         return this.files.readFileSync(path);
     };
-    ZipRunner.prototype.getFrontendIndex = function (newMode) {
-        if (newMode === void 0) { newMode = false; }
+    ZipRunner.prototype.getFrontendIndex = function () {
         var contents = this.getFile("index.html");
         contents = contents.replace(/\{\%siteName\}/g, this.site.siteName);
         contents = contents.replace(/\{\%siteBrand\}/g, this.site.siteBrand || this.site.siteName);
         contents = contents.replace(/\{\%basePath\}/g, this.site.basePath);
         // Inject script
-        var scriptTag = newMode ? "<script src=\"/_ZIPFRONTENDSCRIPT\" type=\"module\"></script>" : "<script>" + this.getFrontendScript() + "</script>";
+        var scriptTag = "<script src=\"/zip-frontend-generated-code.js\" " + (ZipRunner.mode === 'BUNDLER' ? '' : 'type="module"') + "></script>";
         contents = contents.replace(/<\/body>/g, scriptTag + "</body>");
         return contents;
     };
@@ -872,6 +895,10 @@ var ZipRunner = /** @class */ (function () {
         if (path === "/favicon.ico") {
             resp.send("404 Not Found");
         }
+        else if (path == "/zip-frontend-generated-code.js") {
+            resp.setHeader('Content-Type', 'text/javascript');
+            resp.send(this.getFrontendScript());
+        }
         else if (path == "/_zipver") {
             resp.send(require('../package.json').version);
         }
@@ -883,7 +910,7 @@ var ZipRunner = /** @class */ (function () {
         }
         else if (path.startsWith("/api/")) {
             // REST API -- not currently implemented because we have to think about arg types being only string...
-            var method = path.split("/")[2];
+            path.split("/")[2];
             throw "REST API not yet implemented";
         }
         else {
@@ -900,6 +927,7 @@ var ZipRunner = /** @class */ (function () {
         scripts.push(new ZipFrontend(vueFiles, __assign(__assign({}, this.site), { siteBrand: this.site.siteBrand /* we assigned it in the constructor */ })).script(newMode));
         return scripts.join("\n");
     };
+    ZipRunner.mode = "BUNDLER";
     return ZipRunner;
 }());
 function quickRpc(backend, endpointUrl) {
@@ -966,7 +994,7 @@ var ZipFrontend = /** @class */ (function () {
                 : f.path.startsWith('pages/') ? ('/' + minusExt(f.path.substr(6)).replace(/__/g, ':'))
                     : null;
             var componentKey = minusExt(getFileName(f.path)).replace(/[^a-zA-Z0-9א-ת]+/g, "-");
-            // Make name safe and unique
+            // Make componentKey safe and unique
             if (componentKey.startsWith("-"))
                 componentKey = 'z' + componentKey;
             if (componentKey.endsWith("-"))
@@ -1015,6 +1043,6 @@ var ZipFrontend = /** @class */ (function () {
 exports.Bundler = Bundler;
 exports.ZipFrontend = ZipFrontend;
 exports.ZipRunner = ZipRunner;
-exports.default = ZipRunner;
+exports['default'] = ZipRunner;
 exports.getPackageRoot = getPackageRoot;
 exports.quickRpc = quickRpc;

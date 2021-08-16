@@ -58,7 +58,8 @@ export declare class ZipRunner {
         listen?: boolean;
     }): Express.Application;
     getFile(path: string): string;
-    getFrontendIndex(newMode?: boolean): string;
+    static mode: "BUNDLER" | "VITE" | "ROLLUP";
+    getFrontendIndex(): string;
     startBackend(): void;
     get handler(): (req: any, resp: any) => void;
     handleRequest(path: string, req: any, resp: any): void;

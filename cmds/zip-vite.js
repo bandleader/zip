@@ -69,12 +69,13 @@ function checkAndLoadDeps() {
           if (!fs.existsSync(filename)) console.error("ZIPDEFAULTFILES could not find", id, "at path", filename, "called from", from || "?")
           else ret = fs.promises.readFile(filename, { encoding: "UTF8" })
         }
-        if (id === "/_ZIPFRONTENDSCRIPT") ret = zipCtx.runner.getFrontendScript(true)
+        if (id === "/zip-frontend-generated-code.js") ret = zipCtx.runner.getFrontendScript()
         // console.log("--> RETURNING",id, ret && ret.length)
         return ret
       })
     ],
   })
+  zipCtx.runner.constructor.mode = "VITE"
   const app = expressApp(server.middlewares)
   await new Promise(res => app.listen(port, res))
   console.log(`🌐 Zip+Vite is listening on http://localhost:${port}`)
