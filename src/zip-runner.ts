@@ -141,7 +141,7 @@ export class ZipRunner {
     // return this.site.files[path].data
     return this.files.readFileSync(path)
   }
-  static mode: "BUNDLER"|"VITE"|"ROLLUP" = "BUNDLER"
+  static mode: "BUNDLER"|"VITE" = "BUNDLER"
   
   getFrontendIndex() {
     let contents = this.getFile("index.html")
