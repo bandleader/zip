@@ -2,6 +2,7 @@ import * as Crypto from 'crypto';
 import * as fs from 'fs';
 import * as Express from 'express';
 import * as path from 'path';
+import * as Vite from 'vite';
 
 /*! *****************************************************************************
 Copyright (c) Microsoft Corporation.
@@ -755,34 +756,37 @@ function zipFsProvider(zr, opts) {
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
+                    console.log("ABOUT TO RESOLVE", id, from);
                     ret = undefined;
                     zipDefaultFilePath = id.split("/_ZIPDEFAULTFILES/")[1];
-                    if (!(id === "/zip-frontend-generated-code.js")) return [3 /*break*/, 1];
-                    ret = zr.getFrontendScript();
-                    return [3 /*break*/, 8];
+                    if (!(id === "/zip-frontend-generated-code.js")) return [3 /*break*/, 2];
+                    return [4 /*yield*/, zr.getFrontendScript()];
                 case 1:
-                    if (!zipDefaultFilePath) return [3 /*break*/, 5];
-                    filename = path.resolve(__dirname, "../default-files", zipDefaultFilePath);
-                    if (!!fs.existsSync(filename)) return [3 /*break*/, 2];
-                    console.error("zipFsProvider could not find DefaultFile", id, "at path", filename, "called from", from || "?");
-                    return [3 /*break*/, 4];
-                case 2: return [4 /*yield*/, fs.promises.readFile(filename, { encoding: "UTF8" })];
-                case 3:
                     ret = _a.sent();
-                    _a.label = 4;
-                case 4: return [3 /*break*/, 8];
-                case 5:
-                    if (!(opts.includingNonDefault && !id.startsWith("/@"))) return [3 /*break*/, 8];
+                    return [3 /*break*/, 9];
+                case 2:
+                    if (!zipDefaultFilePath) return [3 /*break*/, 6];
+                    filename = path.resolve(__dirname, "../default-files", zipDefaultFilePath);
+                    if (!!fs.existsSync(filename)) return [3 /*break*/, 3];
+                    console.error("zipFsProvider could not find DefaultFile", id, "at path", filename, "called from", from || "?");
+                    return [3 /*break*/, 5];
+                case 3: return [4 /*yield*/, fs.promises.readFile(filename, { encoding: "UTF8" })];
+                case 4:
+                    ret = _a.sent();
+                    _a.label = 5;
+                case 5: return [3 /*break*/, 9];
+                case 6:
+                    if (!(opts.includingNonDefault && !id.startsWith("/@"))) return [3 /*break*/, 9];
                     files = zr.files.getFiles(), pathLookingFor_1 = id.substr(1);
                     file = files.find(function (x) { return x.path === pathLookingFor_1; }) || files.find(function (x) { return x.path === pathLookingFor_1 + ".ts"; }) || files.find(function (x) { return x.path === pathLookingFor_1 + ".js"; });
-                    if (!!file) return [3 /*break*/, 6];
+                    if (!!file) return [3 /*break*/, 7];
                     console.error("zipFsProvider could not find Zip file", id, "in site 'files' collection");
-                    return [3 /*break*/, 8];
-                case 6: return [4 /*yield*/, fs.promises.readFile(file.localPath, { encoding: "UTF8" })];
-                case 7:
+                    return [3 /*break*/, 9];
+                case 7: return [4 /*yield*/, fs.promises.readFile(file.localPath, { encoding: "UTF8" })];
+                case 8:
                     ret = _a.sent();
-                    _a.label = 8;
-                case 8: return [2 /*return*/, ret];
+                    _a.label = 9;
+                case 9: return [2 /*return*/, ret];
             }
         });
     }); });
@@ -921,7 +925,7 @@ var ZipRunner = /** @class */ (function () {
         contents = contents.replace(/\{\%siteBrand\}/g, this.site.siteBrand || this.site.siteName);
         contents = contents.replace(/\{\%basePath\}/g, this.site.basePath);
         // Inject script tag
-        var scriptTag = "<script src=\"/zip-frontend-generated-code.js\" " + (ZipRunner.mode === 'BUNDLER' ? '' : 'type="module"') + "></script>";
+        var scriptTag = "<script src=\"/zip-frontend-generated-code.js\" " + (ZipRunner.mode === "ZIPBUNDLER" ? '' : 'type="module"') + "></script>";
         contents = contents.replace(/<\/body>/g, scriptTag + "</body>");
         return contents;
     };
@@ -955,52 +959,92 @@ var ZipRunner = /** @class */ (function () {
         configurable: true
     });
     ZipRunner.prototype.handleRequest = function (path, req, resp) {
-        if (!resp.json)
-            resp.json = function (obj) { return resp.send(JSON.stringify(obj)); };
-        /*const tryWith = (msgPrefix: string, fn: Function) => {
-          try {
-            const result = fn()
-            if (result.catch) result.catch(sendErr)
-            return result
-          } catch (ex) {
-            sendErr(`${msgPrefix}${ex}`)
-          }
-        }*/
-        if (path === "/favicon.ico") {
-            resp.send("404 Not Found");
-        }
-        else if (path == "/zip-frontend-generated-code.js") {
-            resp.setHeader('Content-Type', 'text/javascript'); // For some reason this isn't working, and so modules aren't working when in Express
-            resp.send(this.getFrontendScript());
-        }
-        else if (path == "/_zipver") {
-            resp.send(require('../package.json').version);
-        }
-        else if (path === "/api/qrpc") {
-            this.backendRpc.handler(req, resp);
-        }
-        else if (path === "/api/auth") {
-            this.authRpc.handler(req, resp);
-        }
-        else if (path.startsWith("/api/")) {
-            // REST API -- not currently implemented because we have to think about arg types being only string...
-            path.split("/")[2];
-            throw "REST API not yet implemented";
-        }
-        else {
-            resp.send(this.getFrontendIndex());
-        }
+        return __awaiter(this, void 0, void 0, function () {
+            var _a, _b;
+            return __generator(this, function (_c) {
+                switch (_c.label) {
+                    case 0:
+                        if (!resp.json)
+                            resp.json = function (obj) { return resp.send(JSON.stringify(obj)); };
+                        if (!(path === "/favicon.ico")) return [3 /*break*/, 1];
+                        resp.send("404 Not Found");
+                        return [3 /*break*/, 4];
+                    case 1:
+                        if (!(path == "/zip-frontend-generated-code.js")) return [3 /*break*/, 3];
+                        resp.setHeader('Content-Type', 'text/javascript'); // For some reason this isn't working, and so modules aren't working when in Express
+                        _b = (_a = resp).send;
+                        return [4 /*yield*/, this.getFrontendScript()];
+                    case 2:
+                        _b.apply(_a, [_c.sent()]);
+                        return [3 /*break*/, 4];
+                    case 3:
+                        if (path == "/_zipver") {
+                            resp.send(require('../package.json').version);
+                        }
+                        else if (path === "/api/qrpc") {
+                            this.backendRpc.handler(req, resp);
+                        }
+                        else if (path === "/api/auth") {
+                            this.authRpc.handler(req, resp);
+                        }
+                        else if (path.startsWith("/api/")) {
+                            path.split("/")[2];
+                            throw "REST API not yet implemented";
+                        }
+                        else {
+                            resp.send(this.getFrontendIndex());
+                        }
+                        _c.label = 4;
+                    case 4: return [2 /*return*/];
+                }
+            });
+        });
     };
     ZipRunner.prototype.getFrontendScript = function () {
-        var scripts = [];
-        scripts.push(this.getFile("zip-client.js"));
-        scripts.push("Zip.Backend = " + this.backendRpc.script); // RPC for backend methods
-        scripts.push("Zip.ZipAuth = " + this.authRpc.script); // RPC for auth methods
-        var vueFiles = this.files; // passing extra files won't hurt
-        scripts.push(new ZipFrontend(vueFiles, __assign(__assign({}, this.site), { siteBrand: this.site.siteBrand /* we assigned it in the constructor */ })).script());
-        return scripts.join("\n");
+        return __awaiter(this, void 0, void 0, function () {
+            var scripts, vueFiles, out, deps, build;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        scripts = [];
+                        scripts.push(this.getFile("zip-client.js"));
+                        scripts.push("Zip.Backend = " + this.backendRpc.script); // RPC for backend methods
+                        scripts.push("Zip.ZipAuth = " + this.authRpc.script); // RPC for auth methods
+                        vueFiles = this.files // passing extra files won't hurt
+                        ;
+                        scripts.push(new ZipFrontend(vueFiles, __assign(__assign({}, this.site), { siteBrand: this.site.siteBrand /* we assigned it in the constructor */ })).script());
+                        out = scripts.join("\n");
+                        if (!(ZipRunner.mode === "ROLLUP")) return [3 /*break*/, 2];
+                        deps = ViteEtc.checkAndLoadDeps();
+                        return [4 /*yield*/, Vite.build({
+                                root: getPackageRoot() + '/zip-src',
+                                plugins: [
+                                    deps.vuePlugin(),
+                                    ViteEtc.zipFsProvider(this)
+                                ],
+                                build: {
+                                    write: false,
+                                    rollupOptions: {
+                                        input: "/zip-frontend-generated-code.js",
+                                    }
+                                },
+                            })];
+                    case 1:
+                        build = _a.sent();
+                        console.log("BUILD PRODUCED:", build);
+                        out = build.output.map(function (x) { return x.type === 'chunk' ? x.code : ''; }).join("\n;\n");
+                        _a.label = 2;
+                    case 2:
+                        // Let's ESBuild it
+                        out = require('esbuild').transformSync(out, {
+                            loader: 'ts'
+                        }).code;
+                        return [2 /*return*/, out];
+                }
+            });
+        });
     };
-    ZipRunner.mode = "BUNDLER";
+    ZipRunner.mode = "ZIPBUNDLER";
     return ZipRunner;
 }());
 function quickRpc(backend, endpointUrl) {
@@ -1088,7 +1132,7 @@ var ZipFrontend = /** @class */ (function () {
         var _this = this;
         if (vue3 === void 0) { vue3 = false; }
         var _a;
-        var newMode = ZipRunner.mode !== "BUNDLER";
+        var newMode = ZipRunner.mode !== "ZIPBUNDLER";
         var files = this._vueFiles();
         var lines = function (x) { return files.map(x).filter(function (x) { return x; }).join("\n"); };
         var ret = "\n      // Import the Vue files\n      " + lines(function (f, i) {

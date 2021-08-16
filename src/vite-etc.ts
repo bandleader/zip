@@ -14,8 +14,8 @@ export function quickRollupProvidePlugin(fn2: Function) {
 export function checkAndLoadDeps() {
     const tryRequire = (moduleName: string) => { try { return require(moduleName) } catch { return false } }
     const vers = [
-        { ver: 2, deps: "vite-plugin-vue2 vue-template-compiler", vuePlugin: (opts: any) => require('vite-plugin-vue2').createVuePlugin(opts) },
-        { ver: 3, deps: "@vitejs/plugin-vue @vue/compiler-sfc", vuePlugin: (opts: any) => require('@vitejs/plugin-vue').default(opts) }
+        { ver: 2, deps: "vite-plugin-vue2 vue-template-compiler", vuePlugin: (opts?: any) => require('vite-plugin-vue2').createVuePlugin(opts) },
+        { ver: 3, deps: "@vitejs/plugin-vue @vue/compiler-sfc", vuePlugin: (opts?: any) => require('@vitejs/plugin-vue').default(opts) }
     ]
     const vue = tryRequire("vue"), vite = tryRequire("vite")
     const bail = (err: string) => { console.error(err); process.exit(1); throw err /* just in case*/ }
@@ -31,10 +31,10 @@ export function checkAndLoadDeps() {
   
 export function zipFsProvider(zr: ZipRunner, opts: { includingNonDefault?: boolean } = {}) {
     return quickRollupProvidePlugin(async (id: string, from: string) => {
-        // console.log("ABOUT TO RESOLVE",id,from)
+        console.log("ABOUT TO RESOLVE",id,from)
         let ret = undefined
         const zipDefaultFilePath = id.split("/_ZIPDEFAULTFILES/")[1]
-        if (id === "/zip-frontend-generated-code.js") ret = zr.getFrontendScript()
+        if (id === "/zip-frontend-generated-code.js") ret = await zr.getFrontendScript()
         else if (zipDefaultFilePath) { // Return a 'default-file'
           const filename = path.resolve(__dirname, "../default-files", zipDefaultFilePath)
           if (!fs.existsSync(filename)) console.error("zipFsProvider could not find DefaultFile", id, "at path", filename, "called from", from || "?")

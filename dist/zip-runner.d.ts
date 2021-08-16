@@ -60,12 +60,12 @@ export declare class ZipRunner {
         listen?: boolean;
     }): Express.Application;
     getFile(path: string): string;
-    static mode: "BUNDLER" | "VITE";
+    static mode: "ZIPBUNDLER" | "VITE" | "ROLLUP";
     getFrontendIndex(): string;
     startBackend(): void;
     get handler(): (req: any, resp: any) => void;
-    handleRequest(path: string, req: any, resp: any): void;
-    getFrontendScript(): string;
+    handleRequest(path: string, req: any, resp: any): Promise<void>;
+    getFrontendScript(): Promise<string>;
 }
 export declare function quickRpc(backend: Record<string, Function>, endpointUrl?: string): {
     script: string;

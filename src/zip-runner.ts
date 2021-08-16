@@ -14,6 +14,7 @@ import * as Identity from './identity'
 import * as fs from 'fs'
 import * as Express from 'express'
 import * as _ViteEtc from './vite-etc'
+import * as Vite from 'vite'
 export const ViteEtc = _ViteEtc
 
 export function getPackageRoot() {
@@ -143,7 +144,7 @@ export class ZipRunner {
     // return this.site.files[path].data
     return this.files.readFileSync(path)
   }
-  static mode: "BUNDLER"|"VITE" = "BUNDLER"
+  static mode: "ZIPBUNDLER"|"VITE"|"ROLLUP" = "ZIPBUNDLER"
   
   getFrontendIndex() {
     let contents = this.getFile("index.html")
@@ -151,7 +152,7 @@ export class ZipRunner {
     contents = contents.replace(/\{\%siteBrand\}/g, this.site.siteBrand || this.site.siteName)
     contents = contents.replace(/\{\%basePath\}/g, this.site.basePath)
     // Inject script tag
-    const scriptTag = `<script src="/zip-frontend-generated-code.js" ${ZipRunner.mode === 'BUNDLER' ? '' : 'type="module"'}></script>`
+    const scriptTag = `<script src="/zip-frontend-generated-code.js" ${ZipRunner.mode === "ZIPBUNDLER" ? '' : 'type="module"'}></script>`
     contents = contents.replace(/<\/body>/g, `${scriptTag}</body>`)
     return contents
   }
@@ -184,7 +185,7 @@ export class ZipRunner {
     }
   }
 
-  handleRequest(path: string, req: any, resp: any) {
+  async handleRequest(path: string, req: any, resp: any) {
     if (!resp.json) resp.json = (obj: any) => resp.send(JSON.stringify(obj))
     
     const sendErr = (err: any) => resp.send({ err: String(err) })
@@ -202,7 +203,7 @@ export class ZipRunner {
       resp.send("404 Not Found")
     } else if (path == "/zip-frontend-generated-code.js") {
       resp.setHeader('Content-Type', 'text/javascript') // For some reason this isn't working, and so modules aren't working when in Express
-      resp.send(this.getFrontendScript())
+      resp.send(await this.getFrontendScript())
     } else if (path == "/_zipver") {
       resp.send(require('../package.json').version)
     } else if (path === "/api/qrpc") {
@@ -218,14 +219,38 @@ export class ZipRunner {
     }
   }
 
-  getFrontendScript() {
+  async getFrontendScript() {
     const scripts: string[] = []
     scripts.push(this.getFile("zip-client.js"))
     scripts.push("Zip.Backend = " + this.backendRpc.script) // RPC for backend methods
     scripts.push("Zip.ZipAuth = " + this.authRpc.script) // RPC for auth methods
     const vueFiles = this.files // passing extra files won't hurt
     scripts.push(new ZipFrontend(vueFiles, {...this.site, siteBrand: this.site.siteBrand! /* we assigned it in the constructor */ }).script())
-    return scripts.join("\n")
+    let out = scripts.join("\n")
+    if (ZipRunner.mode === "ROLLUP") {
+      const deps = ViteEtc.checkAndLoadDeps()
+      const build = await Vite.build({
+        root: getPackageRoot() + '/zip-src',
+        plugins: [
+          deps.vuePlugin(),
+          ViteEtc.zipFsProvider(this)
+        ],
+        build: {
+          write: false,
+          rollupOptions: {
+            input: "/zip-frontend-generated-code.js",
+          }
+        },
+      })
+      console.log("BUILD PRODUCED:", build)
+      out = (build as any).output.map((x: any) => x.type === 'chunk' ? x.code : '').join("\n;\n")
+    }
+    // Let's ESBuild it
+    out = require('esbuild').transformSync(out, {
+      loader: 'ts'
+    }).code    
+
+    return out
   }
  
 }
@@ -303,7 +328,7 @@ export class ZipFrontend {
   }
 
   script(vue3 = false) {
-    const newMode = ZipRunner.mode !== "BUNDLER"
+    const newMode = ZipRunner.mode !== "ZIPBUNDLER"
     const files = this._vueFiles()
     const lines = (x: (file: typeof files[0], i: number)=>string) => files.map(x).filter(x => x).join("\n")
     let ret = `
