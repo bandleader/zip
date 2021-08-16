@@ -242,6 +242,9 @@ export class SimpleBundler {
       })()
     `
   }
+  static moduleCodeToFactoryFunc_simple(jsCode: string, importCallback?: (path: string) => { key: string }|void) {
+  }
+
 
   static moduleCodeToFactoryFunc(jsCode: string, importCallback?: (path: string) => { key: string }|void) {
     // A "factory function" is a function that takes args (module, exports, __requireByKey) and mutates module.exports (or exports)
@@ -303,13 +306,13 @@ export class SimpleBundler {
     jsCode = `function(module, exports, __requireByKey) {\n${jsCode}\n}`
     return jsCode
   }
-  static moduleCodeToIife(jsCode: string, useDefaultExportIfNoNamedExports = true, allowRequire = false /* i.e. for external modules */) {
+  static moduleCodeToIife(jsCode: string, useDefaultExportIfNoNamedExports = true, blockRequire = false /* i.e. for external modules */) {
     // IIFE will return the exports object, or the default export if that's all there is and `useDefaultExportIfThatsAllThereIs` is set
     // Re: `useDefaultExportIfNoNamedExports`, see its definition in `requireByKey`
     return `(function() {
       var tempModule = { exports: {} }
       var tempFactory = ${SimpleBundler.moduleCodeToFactoryFunc(jsCode)}
-      ${allowRequire ? '' : `var require = function() { throw "Error: require() cannot be called when using 'moduleCodeToIife'" }`}
+      ${blockRequire ? `var require = function() { throw "Error: require() cannot be called when using 'moduleCodeToIife'" }` : ''}
       tempFactory(tempModule, tempModule.exports, undefined) 
       ${useDefaultExportIfNoNamedExports ? `if (Object.keys(tempModule.exports).length === 1 && ('default' in tempModule.exports)) return tempModule.exports.default` : ''}
       return tempModule.exports

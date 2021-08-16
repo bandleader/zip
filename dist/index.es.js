@@ -255,6 +255,8 @@ var SimpleBundler = /** @class */ (function () {
         // Return loader code
         return "\n      ;(function(){\n        const factories = [\n          " + compiledModules.map(function (m) { return "{\n            key: " + JSON.stringify(m.key) + ",\n            factory: " + m.factoryFuncString + ",\n            main: " + !!m.main + "\n          }"; }).join(",") + "\n        ]\n        const createModuleLoader = " + SimpleBundler._createModuleLoader + "\n        const loader = createModuleLoader(factories)\n        // Immediately run any 'main' modules\n        factories.filter(x => x.main).forEach(x => loader.requireByKey(x.key)) \n      })()\n    ";
     };
+    SimpleBundler.moduleCodeToFactoryFunc_simple = function (jsCode, importCallback) {
+    };
     SimpleBundler.moduleCodeToFactoryFunc = function (jsCode, importCallback) {
         // A "factory function" is a function that takes args (module, exports, __requireByKey) and mutates module.exports (or exports)
         // The argument `importCallback` lets you trap imports within the code (so you can add the module), and optionally change the key
@@ -338,12 +340,12 @@ var SimpleBundler = /** @class */ (function () {
         jsCode = "function(module, exports, __requireByKey) {\n" + jsCode + "\n}";
         return jsCode;
     };
-    SimpleBundler.moduleCodeToIife = function (jsCode, useDefaultExportIfNoNamedExports, allowRequire /* i.e. for external modules */) {
+    SimpleBundler.moduleCodeToIife = function (jsCode, useDefaultExportIfNoNamedExports, blockRequire /* i.e. for external modules */) {
         if (useDefaultExportIfNoNamedExports === void 0) { useDefaultExportIfNoNamedExports = true; }
-        if (allowRequire === void 0) { allowRequire = false; }
+        if (blockRequire === void 0) { blockRequire = false; }
         // IIFE will return the exports object, or the default export if that's all there is and `useDefaultExportIfThatsAllThereIs` is set
         // Re: `useDefaultExportIfNoNamedExports`, see its definition in `requireByKey`
-        return "(function() {\n      var tempModule = { exports: {} }\n      var tempFactory = " + SimpleBundler.moduleCodeToFactoryFunc(jsCode) + "\n      " + (allowRequire ? '' : "var require = function() { throw \"Error: require() cannot be called when using 'moduleCodeToIife'\" }") + "\n      tempFactory(tempModule, tempModule.exports, undefined) \n      " + (useDefaultExportIfNoNamedExports ? "if (Object.keys(tempModule.exports).length === 1 && ('default' in tempModule.exports)) return tempModule.exports.default" : '') + "\n      return tempModule.exports\n    })()";
+        return "(function() {\n      var tempModule = { exports: {} }\n      var tempFactory = " + SimpleBundler.moduleCodeToFactoryFunc(jsCode) + "\n      " + (blockRequire ? "var require = function() { throw \"Error: require() cannot be called when using 'moduleCodeToIife'\" }" : '') + "\n      tempFactory(tempModule, tempModule.exports, undefined) \n      " + (useDefaultExportIfNoNamedExports ? "if (Object.keys(tempModule.exports).length === 1 && ('default' in tempModule.exports)) return tempModule.exports.default" : '') + "\n      return tempModule.exports\n    })()";
     };
     SimpleBundler._createModuleLoader = function createModuleLoader(factories) {
         var modules = {};

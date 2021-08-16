@@ -29,9 +29,12 @@ export declare class SimpleBundler {
         requireByKey: (key: string, useDefaultExportIfNoNamedExports?: boolean) => any;
     };
     bundle(): string;
+    static moduleCodeToFactoryFunc_simple(jsCode: string, importCallback?: (path: string) => {
+        key: string;
+    } | void): void;
     static moduleCodeToFactoryFunc(jsCode: string, importCallback?: (path: string) => {
         key: string;
     } | void): string;
-    static moduleCodeToIife(jsCode: string, useDefaultExportIfNoNamedExports?: boolean, allowRequire?: boolean): string;
+    static moduleCodeToIife(jsCode: string, useDefaultExportIfNoNamedExports?: boolean, blockRequire?: boolean): string;
 }
 export declare function evalEx(exprCode: string, customScope?: {}): any;
