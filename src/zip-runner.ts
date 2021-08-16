@@ -245,7 +245,7 @@ export class ZipRunner {
       console.log("BUILD PRODUCED:", build)
       out = (build as any).output.map((x: any) => x.type === 'chunk' ? x.code : '').join("\n;\n")
     }
-    // Let's ESBuild it
+    // Let's ESBuild it, to support TS
     out = require('esbuild').transformSync(out, {
       loader: 'ts'
     }).code    

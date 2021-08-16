@@ -243,16 +243,16 @@ export class SimpleBundler {
     `
   }
 
-  /* WAS DOING THIS MOSTLY TO ALLOW caller not to go ahead with the import
-    however I realized that for this to be useful we have to give that power to `resolver`,
-    meaning it should be allowed to return a { external: true } or something
-    And also, `resolveAndAddModule` would have to sometimes return null, if the resolver says so
-    And that somewhat complicates things
-    Another approach is to add the module to the list, just mark it external, so we don't include it in the bundle
-     */
   static moduleCodeToFactoryFunc(jsCode: string, importCallback?: (path: string) => { key: string }|void) {
     // A "factory function" is a function that takes args (module, exports, __requireByKey) and mutates module.exports (or exports)
     // The argument `importCallback` lets you trap imports within the code (so you can add the module), and optionally change the key
+    /* 2021: `importCallback` is now allowed to return void, which will not add a module, and will leave the import/require call as is.
+          However, I realized that for this to be useful we have to give that power to `resolver`,
+          meaning it should be allowed to return a { external: true } or something
+          And also, `resolveAndAddModule` would have to sometimes return null, if the resolver says so
+          And that somewhat complicates things
+          Another approach is to add the module to the list, just mark it external, so we don't include it in the bundle
+    */
 
     if (importCallback) {
       const performReplacements = (regExp: RegExp, getPath: (replaceCallbackArgs: string[]) => string, newSyntax: (key: string, replaceCallbackArgs: string[]) => string) => {
