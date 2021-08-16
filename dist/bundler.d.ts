@@ -15,7 +15,9 @@ export declare type InputModule = {
 export declare class SimpleBundler {
     modulesToBundle: InputModule[];
     resolver: (path: string, fromPath: string) => string[];
-    loader: (idOrNormalizedPath: string) => string | void;
+    loader: (idOrNormalizedPath: string) => void | {
+        code: string;
+    };
     resolveAndAddModule(pathString: string, opts?: {
         fromModuleAtPath?: string;
         main?: boolean;

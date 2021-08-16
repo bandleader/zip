@@ -153,7 +153,7 @@ export class SimpleBundler {
     fromPath = fromPath.split("?")[0] // If the calling module has a querystring, remove it
     return ["", ".js", "/index.js"].map(x => require('path').join(fromPath, path + x))
   }
-  loader = (idOrNormalizedPath: string): string|void => {
+  loader = (idOrNormalizedPath: string): { code: string }|void => {
     // Return a string if you managed to load the code. We expect you to override this method if the code you're bundling uses modules that you aren't pre-adding to the list
   }
   resolveAndAddModule(pathString: string, opts: { fromModuleAtPath?: string, main?: boolean } = {}) {
@@ -168,7 +168,7 @@ export class SimpleBundler {
 
     // Otherwise, see if any loaders can load any of the IDs
     let foundCode: string|void = null
-    let foundId = ids.find(x => foundCode = this.loader(x))
+    let foundId = ids.find(x => { const r = this.loader(x); if (r) foundCode = r.code; return !!r } )
     if (typeof foundCode !== 'string') throw `Couldn't resolve path '${pathString}' from module '${opts.fromModuleAtPath || ""}`
     // And create a new module for it
     const newModule = { codeString: foundCode, key: foundId, main: !!opts.main }

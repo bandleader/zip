@@ -228,7 +228,8 @@ var SimpleBundler = /** @class */ (function () {
         }
         // Otherwise, see if any loaders can load any of the IDs
         var foundCode = null;
-        var foundId = ids.find(function (x) { return foundCode = _this.loader(x); });
+        var foundId = ids.find(function (x) { var r = _this.loader(x); if (r)
+            foundCode = r.code; return !!r; });
         if (typeof foundCode !== 'string')
             throw "Couldn't resolve path '" + pathString + "' from module '" + (opts.fromModuleAtPath || "");
         // And create a new module for it
@@ -254,16 +255,16 @@ var SimpleBundler = /** @class */ (function () {
         // Return loader code
         return "\n      ;(function(){\n        const factories = [\n          " + compiledModules.map(function (m) { return "{\n            key: " + JSON.stringify(m.key) + ",\n            factory: " + m.factoryFuncString + ",\n            main: " + !!m.main + "\n          }"; }).join(",") + "\n        ]\n        const createModuleLoader = " + SimpleBundler._createModuleLoader + "\n        const loader = createModuleLoader(factories)\n        // Immediately run any 'main' modules\n        factories.filter(x => x.main).forEach(x => loader.requireByKey(x.key)) \n      })()\n    ";
     };
-    /* WAS DOING THIS MOSTLY TO ALLOW caller not to go ahead with the import
-      however I realized that for this to be useful we have to give that power to `resolver`,
-      meaning it should be allowed to return a { external: true } or something
-      And also, `resolveAndAddModule` would have to sometimes return null, if the resolver says so
-      And that somewhat complicates things
-      Another approach is to add the module to the list, just mark it external, so we don't include it in the bundle
-       */
     SimpleBundler.moduleCodeToFactoryFunc = function (jsCode, importCallback) {
         // A "factory function" is a function that takes args (module, exports, __requireByKey) and mutates module.exports (or exports)
         // The argument `importCallback` lets you trap imports within the code (so you can add the module), and optionally change the key
+        /* 2021: `importCallback` is now allowed to return void, which will not add a module, and will leave the import/require call as is.
+              However, I realized that for this to be useful we have to give that power to `resolver`,
+              meaning it should be allowed to return a { external: true } or something
+              And also, `resolveAndAddModule` would have to sometimes return null, if the resolver says so
+              And that somewhat complicates things
+              Another approach is to add the module to the list, just mark it external, so we don't include it in the bundle
+        */
         if (importCallback) {
             var performReplacements = function (regExp, getPath, newSyntax) {
                 jsCode = jsCode.replace(regExp, function () {
@@ -1035,7 +1036,7 @@ var ZipRunner = /** @class */ (function () {
                         out = build.output.map(function (x) { return x.type === 'chunk' ? x.code : ''; }).join("\n;\n");
                         _a.label = 2;
                     case 2:
-                        // Let's ESBuild it
+                        // Let's ESBuild it, to support TS
                         out = require('esbuild').transformSync(out, {
                             loader: 'ts'
                         }).code;
