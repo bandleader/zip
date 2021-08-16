@@ -243,21 +243,34 @@ export class SimpleBundler {
     `
   }
 
-  static moduleCodeToFactoryFunc(jsCode: string, importCallback?: (path: string) => { key: string }) {
+  /* WAS DOING THIS MOSTLY TO ALLOW caller not to go ahead with the import
+    however I realized that for this to be useful we have to give that power to `resolver`,
+    meaning it should be allowed to return a { external: true } or something
+    And also, `resolveAndAddModule` would have to sometimes return null, if the resolver says so
+    And that somewhat complicates things
+    Another approach is to add the module to the list, just mark it external, so we don't include it in the bundle
+     */
+  static moduleCodeToFactoryFunc(jsCode: string, importCallback?: (path: string) => { key: string }|void) {
     // A "factory function" is a function that takes args (module, exports, __requireByKey) and mutates module.exports (or exports)
     // The argument `importCallback` lets you trap imports within the code (so you can add the module), and optionally change the key
 
     if (importCallback) {
-      const getNewRequire = (path: string, allowDefaultExport = true) => `__requireByKey(${JSON.stringify(importCallback(path).key)}` + (allowDefaultExport ? ')' : ', false)')
-      jsCode = jsCode.replace(/require\([\'\"](.+?)[\'\"]\)/g, (_, path) => getNewRequire(path))
-
+      const performReplacements = (regExp: RegExp, getPath: (replaceCallbackArgs: string[]) => string, newSyntax: (key: string, replaceCallbackArgs: string[]) => string) => {
+          jsCode = jsCode.replace(regExp, (...args) => {
+            const path = getPath(args)
+            const importResult = importCallback(path)      
+            if (!importResult) return args[0] // If the importCallback doesn't wish to convert this import (i.e. it's for an external module etc.), leave it as is
+            return newSyntax(importResult.key, args)
+          })
+      }
+      performReplacements(/require\([\'\"](.+?)[\'\"]\)/g, ([_, path]) => path, key => `__requireByKey(${JSON.stringify(key)})`)
       // EXPERIMENTAL: also allow ES6 import syntax
       // default imports: import foo from 'module'
-      jsCode = jsCode.replace(/[ \t]*import ([A-Za-z0-9_]+) from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, (whole,identifier,path)=>`const ${identifier} = ${getNewRequire(path, false)}.default`)
+      performReplacements(/[ \t]*import ([A-Za-z0-9_]+) from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, ([whole,identifier,path]) => path, (key,[whole,identifier]) => `const ${identifier} = __requireByKey(${JSON.stringify(key)}, false).default`)
       // namespaced entire import: import * as foo from 'module'
-      jsCode = jsCode.replace(/[ \t]*import \* as ([A-Za-z0-9_]+) from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, (whole,identifier,path)=>`const ${identifier} = ${getNewRequire(path, false)}`)
+      performReplacements(/[ \t]*import \* as ([A-Za-z0-9_]+) from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, ([whole,identifier,path]) => path, (key,[whole,identifier]) => `const ${identifier} = __requireByKey(${JSON.stringify(key)}, false)`)
       // named imports: import { a, b, c } from 'module'
-      jsCode = jsCode.replace(/[ \t]*import \{([A-Za-z0-9_, ]+)\} from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, (whole,imports,path)=>`const { ${imports} } = ${getNewRequire(path, false)}`)
+      performReplacements(/[ \t]*import \{([A-Za-z0-9_, ]+)\} from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, ([whole,imports,path] )=> path, (key,[whole,imports]) => `const { ${imports} } = __requireByKey(${JSON.stringify(key)}, false)`)
     }
 
     // EXPERIMENTAL: Convert ES6 export syntax. For now we only support `export default <expr>`
