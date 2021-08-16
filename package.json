@@ -22,7 +22,8 @@
   "scripts": {
     "build": "rollup -c",
     "watch": "rollup -cw",
-    "test-serve": "ts-node-dev --respawn --transpile-only --compiler-options \"{\\\"module\\\": \\\"CommonJS\\\"}\" ./server.ts",
+    "test-serve-dev": "ts-node-dev --respawn --transpile-only --compiler-options \"{\\\"module\\\": \\\"CommonJS\\\"}\" ./server.ts",
+    "test-serve": "ts-node-dev --respawn --transpile-only --compiler-options \"{\\\"module\\\": \\\"CommonJS\\\"}\" ./cmds/zip-serve.js",
     "test-vite": "ts-node-dev --respawn --transpile-only --compiler-options \"{\\\"module\\\": \\\"CommonJS\\\"}\" ./cmds/zip-vite.js"
   },
   "dependencies": {
