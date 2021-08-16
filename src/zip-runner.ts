@@ -13,6 +13,8 @@ import GraphQueryRunner from './graph'
 import * as Identity from './identity'
 import * as fs from 'fs'
 import * as Express from 'express'
+import * as _ViteEtc from './vite-etc'
+export const ViteEtc = _ViteEtc
 
 export function getPackageRoot() {
   let projRoot = process.cwd()
@@ -148,7 +150,7 @@ export class ZipRunner {
     contents = contents.replace(/\{\%siteName\}/g, this.site.siteName)
     contents = contents.replace(/\{\%siteBrand\}/g, this.site.siteBrand || this.site.siteName)
     contents = contents.replace(/\{\%basePath\}/g, this.site.basePath)
-    // Inject script
+    // Inject script tag
     const scriptTag = `<script src="/zip-frontend-generated-code.js" ${ZipRunner.mode === 'BUNDLER' ? '' : 'type="module"'}></script>`
     contents = contents.replace(/<\/body>/g, `${scriptTag}</body>`)
     return contents
@@ -199,7 +201,7 @@ export class ZipRunner {
     if (path === "/favicon.ico") {
       resp.send("404 Not Found")
     } else if (path == "/zip-frontend-generated-code.js") {
-      resp.setHeader('Content-Type', 'text/javascript')
+      resp.setHeader('Content-Type', 'text/javascript') // For some reason this isn't working, and so modules aren't working when in Express
       resp.send(this.getFrontendScript())
     } else if (path == "/_zipver") {
       resp.send(require('../package.json').version)
@@ -216,13 +218,13 @@ export class ZipRunner {
     }
   }
 
-  getFrontendScript(newMode = false) {
+  getFrontendScript() {
     const scripts: string[] = []
     scripts.push(this.getFile("zip-client.js"))
     scripts.push("Zip.Backend = " + this.backendRpc.script) // RPC for backend methods
     scripts.push("Zip.ZipAuth = " + this.authRpc.script) // RPC for auth methods
     const vueFiles = this.files // passing extra files won't hurt
-    scripts.push(new ZipFrontend(vueFiles, {...this.site, siteBrand: this.site.siteBrand! /* we assigned it in the constructor */ }).script(newMode))
+    scripts.push(new ZipFrontend(vueFiles, {...this.site, siteBrand: this.site.siteBrand! /* we assigned it in the constructor */ }).script())
     return scripts.join("\n")
   }
  
@@ -300,7 +302,8 @@ export class ZipFrontend {
     })
   }
 
-  script(newMode = false, vue3 = false) {
+  script(vue3 = false) {
+    const newMode = ZipRunner.mode !== "BUNDLER"
     const files = this._vueFiles()
     const lines = (x: (file: typeof files[0], i: number)=>string) => files.map(x).filter(x => x).join("\n")
     let ret = `

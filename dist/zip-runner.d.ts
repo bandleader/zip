@@ -1,6 +1,8 @@
 import * as _Bundler from './bundler';
 export declare const Bundler: typeof _Bundler;
 import * as Express from 'express';
+import * as _ViteEtc from './vite-etc';
+export declare const ViteEtc: typeof _ViteEtc;
 export declare function getPackageRoot(): string;
 declare type ZipSite = {
     siteName?: string;
@@ -58,12 +60,12 @@ export declare class ZipRunner {
         listen?: boolean;
     }): Express.Application;
     getFile(path: string): string;
-    static mode: "BUNDLER" | "VITE" | "ROLLUP";
+    static mode: "BUNDLER" | "VITE";
     getFrontendIndex(): string;
     startBackend(): void;
     get handler(): (req: any, resp: any) => void;
     handleRequest(path: string, req: any, resp: any): void;
-    getFrontendScript(newMode?: boolean): string;
+    getFrontendScript(): string;
 }
 export declare function quickRpc(backend: Record<string, Function>, endpointUrl?: string): {
     script: string;
@@ -91,5 +93,5 @@ export declare class ZipFrontend {
         localPath?: string;
     }[];
     _vueModules(): string[];
-    script(newMode?: boolean, vue3?: boolean): string;
+    script(vue3?: boolean): string;
 }

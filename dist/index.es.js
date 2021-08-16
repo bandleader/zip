@@ -1,6 +1,7 @@
 import * as Crypto from 'crypto';
 import * as fs from 'fs';
 import * as Express from 'express';
+import * as path from 'path';
 
 /*! *****************************************************************************
 Copyright (c) Microsoft Corporation.
@@ -694,8 +695,109 @@ function Loginner(_opts) {
     return { api: api, verifyToken: verifyToken };
 }
 
+function quickRollupProvidePlugin(fn2) {
+    var fn = function () {
+        var args = [];
+        for (var _i = 0; _i < arguments.length; _i++) {
+            args[_i] = arguments[_i];
+        }
+        return args[0].includes('?') ? undefined : fn2.apply(void 0, args);
+    };
+    return {
+        name: 'customProvidePlugin',
+        resolveId: function () {
+            var args = [];
+            for (var _i = 0; _i < arguments.length; _i++) {
+                args[_i] = arguments[_i];
+            }
+            return (Promise.resolve(fn.apply(void 0, args)).then(function (x) { return x ? args[0] : undefined; }));
+        },
+        load: function () {
+            var args = [];
+            for (var _i = 0; _i < arguments.length; _i++) {
+                args[_i] = arguments[_i];
+            }
+            return fn.apply(void 0, args) || undefined;
+        },
+    };
+}
+function checkAndLoadDeps() {
+    var tryRequire = function (moduleName) { try {
+        return require(moduleName);
+    }
+    catch (_a) {
+        return false;
+    } };
+    var vers = [
+        { ver: 2, deps: "vite-plugin-vue2 vue-template-compiler", vuePlugin: function (opts) { return require('vite-plugin-vue2').createVuePlugin(opts); } },
+        { ver: 3, deps: "@vitejs/plugin-vue @vue/compiler-sfc", vuePlugin: function (opts) { return require('@vitejs/plugin-vue').default(opts); } }
+    ];
+    var vue = tryRequire("vue"), vite = tryRequire("vite");
+    var bail = function (err) { console.error(err); process.exit(1); throw err; /* just in case*/ };
+    if (!vue || !vite)
+        bail("To use vite, please install dependencies:\n  npm install vue vite " + vers[0].deps + "\n  -- OR --\n  npm install vue vite " + vers[1].deps);
+    var installedVer = vers.find(function (x) { return x.ver === parseInt(vue.version); });
+    if (!installedVer)
+        bail("Unrecognized Vue version: " + vue.version);
+    if (installedVer.ver === 3)
+        bail("We are not set up yet to work with Vue 3. Install Vue 2:\n\n  npm install vue@2 " + vers[0].deps);
+    var missingDeps = installedVer.deps.split(" ").filter(function (x) { return !tryRequire(x); });
+    if (missingDeps.length)
+        bail("Missing dependencies for Vue " + installedVer.ver + ":\n  npm install " + missingDeps.join(" "));
+    // All good!
+    return { version: vue.version, vite: vite, vuePlugin: installedVer.vuePlugin };
+}
+function zipFsProvider(zr, opts) {
+    var _this = this;
+    if (opts === void 0) { opts = {}; }
+    return quickRollupProvidePlugin(function (id, from) { return __awaiter(_this, void 0, void 0, function () {
+        var ret, zipDefaultFilePath, filename, files, pathLookingFor_1, file;
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0:
+                    ret = undefined;
+                    zipDefaultFilePath = id.split("/_ZIPDEFAULTFILES/")[1];
+                    if (!(id === "/zip-frontend-generated-code.js")) return [3 /*break*/, 1];
+                    ret = zr.getFrontendScript();
+                    return [3 /*break*/, 8];
+                case 1:
+                    if (!zipDefaultFilePath) return [3 /*break*/, 5];
+                    filename = path.resolve(__dirname, "../default-files", zipDefaultFilePath);
+                    if (!!fs.existsSync(filename)) return [3 /*break*/, 2];
+                    console.error("zipFsProvider could not find DefaultFile", id, "at path", filename, "called from", from || "?");
+                    return [3 /*break*/, 4];
+                case 2: return [4 /*yield*/, fs.promises.readFile(filename, { encoding: "UTF8" })];
+                case 3:
+                    ret = _a.sent();
+                    _a.label = 4;
+                case 4: return [3 /*break*/, 8];
+                case 5:
+                    if (!(opts.includingNonDefault && !id.startsWith("/@"))) return [3 /*break*/, 8];
+                    files = zr.files.getFiles(), pathLookingFor_1 = id.substr(1);
+                    file = files.find(function (x) { return x.path === pathLookingFor_1; }) || files.find(function (x) { return x.path === pathLookingFor_1 + ".ts"; }) || files.find(function (x) { return x.path === pathLookingFor_1 + ".js"; });
+                    if (!!file) return [3 /*break*/, 6];
+                    console.error("zipFsProvider could not find Zip file", id, "in site 'files' collection");
+                    return [3 /*break*/, 8];
+                case 6: return [4 /*yield*/, fs.promises.readFile(file.localPath, { encoding: "UTF8" })];
+                case 7:
+                    ret = _a.sent();
+                    _a.label = 8;
+                case 8: return [2 /*return*/, ret];
+            }
+        });
+    }); });
+}
+
+var _ViteEtc = /*#__PURE__*/Object.freeze({
+    __proto__: null,
+    quickRollupProvidePlugin: quickRollupProvidePlugin,
+    checkAndLoadDeps: checkAndLoadDeps,
+    zipFsProvider: zipFsProvider
+});
+
 //   ________  ___  ________   
 var Bundler = _Bundler;
+var ViteEtc = _ViteEtc;
 function getPackageRoot() {
     var projRoot = process.cwd();
     while (!(require('fs').existsSync(projRoot + "/package.json"))) {
@@ -818,7 +920,7 @@ var ZipRunner = /** @class */ (function () {
         contents = contents.replace(/\{\%siteName\}/g, this.site.siteName);
         contents = contents.replace(/\{\%siteBrand\}/g, this.site.siteBrand || this.site.siteName);
         contents = contents.replace(/\{\%basePath\}/g, this.site.basePath);
-        // Inject script
+        // Inject script tag
         var scriptTag = "<script src=\"/zip-frontend-generated-code.js\" " + (ZipRunner.mode === 'BUNDLER' ? '' : 'type="module"') + "></script>";
         contents = contents.replace(/<\/body>/g, scriptTag + "</body>");
         return contents;
@@ -868,7 +970,7 @@ var ZipRunner = /** @class */ (function () {
             resp.send("404 Not Found");
         }
         else if (path == "/zip-frontend-generated-code.js") {
-            resp.setHeader('Content-Type', 'text/javascript');
+            resp.setHeader('Content-Type', 'text/javascript'); // For some reason this isn't working, and so modules aren't working when in Express
             resp.send(this.getFrontendScript());
         }
         else if (path == "/_zipver") {
@@ -889,14 +991,13 @@ var ZipRunner = /** @class */ (function () {
             resp.send(this.getFrontendIndex());
         }
     };
-    ZipRunner.prototype.getFrontendScript = function (newMode) {
-        if (newMode === void 0) { newMode = false; }
+    ZipRunner.prototype.getFrontendScript = function () {
         var scripts = [];
         scripts.push(this.getFile("zip-client.js"));
         scripts.push("Zip.Backend = " + this.backendRpc.script); // RPC for backend methods
         scripts.push("Zip.ZipAuth = " + this.authRpc.script); // RPC for auth methods
         var vueFiles = this.files; // passing extra files won't hurt
-        scripts.push(new ZipFrontend(vueFiles, __assign(__assign({}, this.site), { siteBrand: this.site.siteBrand /* we assigned it in the constructor */ })).script(newMode));
+        scripts.push(new ZipFrontend(vueFiles, __assign(__assign({}, this.site), { siteBrand: this.site.siteBrand /* we assigned it in the constructor */ })).script());
         return scripts.join("\n");
     };
     ZipRunner.mode = "BUNDLER";
@@ -983,11 +1084,11 @@ var ZipFrontend = /** @class */ (function () {
             return Bundler.VueSfcs.convVueSfcToESModule(_this.files.readFileSync(vueFile.path), { classTransformer: Bundler.VueSfcs.vueClassTransformerScript() });
         });
     };
-    ZipFrontend.prototype.script = function (newMode, vue3) {
+    ZipFrontend.prototype.script = function (vue3) {
         var _this = this;
-        if (newMode === void 0) { newMode = false; }
         if (vue3 === void 0) { vue3 = false; }
         var _a;
+        var newMode = ZipRunner.mode !== "BUNDLER";
         var files = this._vueFiles();
         var lines = function (x) { return files.map(x).filter(function (x) { return x; }).join("\n"); };
         var ret = "\n      // Import the Vue files\n      " + lines(function (f, i) {
@@ -1012,4 +1113,4 @@ var ZipFrontend = /** @class */ (function () {
     return ZipFrontend;
 }());
 
-export { Bundler, ZipFrontend, ZipRunner, ZipRunner as default, getPackageRoot, quickRpc };
+export { Bundler, ViteEtc, ZipFrontend, ZipRunner, ZipRunner as default, getPackageRoot, quickRpc };

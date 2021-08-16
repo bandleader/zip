@@ -21,11 +21,13 @@ function getZipContext() {
         packageJson,
         zipConfig,
         runner,
+        Zip
     }
 }
 
 module.exports = {
     getZipContext,
     ZipRunner: Zip.ZipRunner,
+    getZip: () => Zip,
     setZip(newZip) { Zip = newZip }
 }
