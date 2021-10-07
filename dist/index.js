@@ -6,7 +6,6 @@ var Crypto = require('crypto');
 var fs = require('fs');
 var Express = require('express');
 var path = require('path');
-var Vite = require('vite');
 
 function _interopNamespace(e) {
     if (e && e.__esModule) return e;
@@ -32,7 +31,6 @@ var Crypto__namespace = /*#__PURE__*/_interopNamespace(Crypto);
 var fs__namespace = /*#__PURE__*/_interopNamespace(fs);
 var Express__namespace = /*#__PURE__*/_interopNamespace(Express);
 var path__namespace = /*#__PURE__*/_interopNamespace(path);
-var Vite__namespace = /*#__PURE__*/_interopNamespace(Vite);
 
 /*! *****************************************************************************
 Copyright (c) Microsoft Corporation.
@@ -1049,7 +1047,7 @@ var ZipRunner = /** @class */ (function () {
                         out = scripts.join("\n");
                         if (!(ZipRunner.mode === "ROLLUP")) return [3 /*break*/, 2];
                         deps = ViteEtc.checkAndLoadDeps();
-                        return [4 /*yield*/, Vite__namespace.build({
+                        return [4 /*yield*/, deps.vite.build({
                                 root: getPackageRoot() + '/zip-src',
                                 plugins: [
                                     deps.vuePlugin(),

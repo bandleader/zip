@@ -2,7 +2,6 @@ import * as Crypto from 'crypto';
 import * as fs from 'fs';
 import * as Express from 'express';
 import * as path from 'path';
-import * as Vite from 'vite';
 
 /*! *****************************************************************************
 Copyright (c) Microsoft Corporation.
@@ -1019,7 +1018,7 @@ var ZipRunner = /** @class */ (function () {
                         out = scripts.join("\n");
                         if (!(ZipRunner.mode === "ROLLUP")) return [3 /*break*/, 2];
                         deps = ViteEtc.checkAndLoadDeps();
-                        return [4 /*yield*/, Vite.build({
+                        return [4 /*yield*/, deps.vite.build({
                                 root: getPackageRoot() + '/zip-src',
                                 plugins: [
                                     deps.vuePlugin(),
