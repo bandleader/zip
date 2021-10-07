@@ -1,6 +1,7 @@
 import * as path from 'path'
 import * as fs from 'fs'
 import ZipRunner from './zip-runner'
+import type * as Vite from 'vite'
 
 export function quickRollupProvidePlugin(fn2: Function) {
     let fn = (...args: any[]) => args[0].includes('?') ? undefined : fn2(...args)
@@ -17,7 +18,7 @@ export function checkAndLoadDeps() {
         { ver: 2, deps: "vite-plugin-vue2 vue-template-compiler", vuePlugin: (opts?: any) => require('vite-plugin-vue2').createVuePlugin(opts) },
         { ver: 3, deps: "@vitejs/plugin-vue @vue/compiler-sfc", vuePlugin: (opts?: any) => require('@vitejs/plugin-vue').default(opts) }
     ]
-    const vue = tryRequire("vue"), vite = tryRequire("vite")
+    const vue = tryRequire("vue"), vite = tryRequire("vite") as typeof Vite
     const bail = (err: string) => { console.error(err); process.exit(1); throw err /* just in case*/ }
     if (!vue || !vite) bail(`To use vite, please install dependencies:\n  npm install vue vite ${vers[0].deps}\n  -- OR --\n  npm install vue vite ${vers[1].deps}`)
     const installedVer = vers.find(x => x.ver === parseInt(vue.version))

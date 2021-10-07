@@ -14,7 +14,6 @@ import * as Identity from './identity'
 import * as fs from 'fs'
 import * as Express from 'express'
 import * as _ViteEtc from './vite-etc'
-import * as Vite from 'vite'
 export const ViteEtc = _ViteEtc
 
 export function getPackageRoot() {
@@ -229,7 +228,7 @@ export class ZipRunner {
     let out = scripts.join("\n")
     if (ZipRunner.mode === "ROLLUP") {
       const deps = ViteEtc.checkAndLoadDeps()
-      const build = await Vite.build({
+      const build = await deps.vite.build({
         root: getPackageRoot() + '/zip-src',
         plugins: [
           deps.vuePlugin(),
