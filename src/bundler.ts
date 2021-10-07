@@ -169,7 +169,7 @@ export class SimpleBundler {
     // Otherwise, see if any loaders can load any of the IDs
     let foundCode: string|void = null
     let foundId = ids.find(x => { const r = this.loader(x); if (r) foundCode = r.code; return !!r } )
-    if (typeof foundCode !== 'string') throw `Couldn't resolve path '${pathString}' from module '${opts.fromModuleAtPath || ""}`
+    if (typeof foundCode !== 'string') throw `Couldn't resolve path '${pathString}' from module '${opts.fromModuleAtPath || ""}' ids ${ids} and we have ${this.modulesToBundle.map(y => y.key)}`
     // And create a new module for it
     const newModule = { codeString: foundCode, key: foundId, main: !!opts.main }
     this.modulesToBundle.push(newModule)

@@ -230,7 +230,7 @@ var SimpleBundler = /** @class */ (function () {
         var foundId = ids.find(function (x) { var r = _this.loader(x); if (r)
             foundCode = r.code; return !!r; });
         if (typeof foundCode !== 'string')
-            throw "Couldn't resolve path '" + pathString + "' from module '" + (opts.fromModuleAtPath || "");
+            throw "Couldn't resolve path '" + pathString + "' from module '" + (opts.fromModuleAtPath || "") + "' ids " + ids + " and we have " + this.modulesToBundle.map(function (y) { return y.key; });
         // And create a new module for it
         var newModule = { codeString: foundCode, key: foundId, main: !!opts.main };
         this.modulesToBundle.push(newModule);
