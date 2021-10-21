@@ -66,6 +66,7 @@ function localFilesystem(root: string) {
   }
   const readFileSync = (path: string) => {
     const localPath = resolve(root, path)
+    console.log(`reading ${path} (${localPath})`)
     if (!localPath.startsWith(localRoot + "/")) throw `Path ${path} is below the root`
     return fs.readFileSync(localPath, { encoding: "utf8" })
   }

@@ -258,8 +258,9 @@ var SimpleBundler = /** @class */ (function () {
         var foundCode = null;
         var foundId = ids.find(function (x) { var r = _this.loader(x); if (r)
             foundCode = r.code; return !!r; });
+        // for debugging: console.log(pathString, !!opts, opts?.fromModuleAtPath)    
         if (typeof foundCode !== 'string')
-            throw "Couldn't resolve path '" + pathString + "' from module '" + (opts.fromModuleAtPath || "") + "' ids " + ids + " and we have " + this.modulesToBundle.map(function (y) { return y.key; });
+            throw "Couldn't resolve path '" + pathString + "' from module '" + (opts.fromModuleAtPath || "") + "'"; // ids ${ids} and we have ${this.modulesToBundle.map(y => y.key)}`
         // And create a new module for it
         var newModule = { codeString: foundCode, key: foundId, main: !!opts.main };
         this.modulesToBundle.push(newModule);
@@ -870,6 +871,7 @@ function localFilesystem(root) {
     };
     var readFileSync = function (path) {
         var localPath = resolve(root, path);
+        console.log("reading " + path + " (" + localPath + ")");
         if (!localPath.startsWith(localRoot + "/"))
             throw "Path " + path + " is below the root";
         return fs__namespace.readFileSync(localPath, { encoding: "utf8" });
