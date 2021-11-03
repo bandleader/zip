@@ -67,7 +67,7 @@ function localFilesystem(root: string) {
   const getFiles = () => getFilesInner() // because we don't want the dirPrefix argument exposed
   const readFileSync = (path: string) => {
     const localPath = resolve(root, path)
-    console.log(`reading ${path} (${localPath})`)
+    // console.log(`Local FS: Reading ${path} (${localPath})`)
     if (!localPath.startsWith(localRoot + "/")) throw `Path ${path} is below the root`
     return fs.readFileSync(localPath, { encoding: "utf8" })
   }
