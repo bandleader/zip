@@ -935,20 +935,28 @@ var ZipRunner = /** @class */ (function () {
     }
     ZipRunner.prototype.build = function (outputDir) {
         return __awaiter(this, void 0, void 0, function () {
-            var staticFiles, _i, staticFiles_1, f, outputPath, dirOfOutputPath;
-            return __generator(this, function (_a) {
-                fs__namespace.mkdirSync(outputDir, { recursive: true });
-                staticFiles = this.files.getFiles().filter(function (x) { return x.path.startsWith('static/'); });
-                for (_i = 0, staticFiles_1 = staticFiles; _i < staticFiles_1.length; _i++) {
-                    f = staticFiles_1[_i];
-                    outputPath = outputDir + "/" + f.path.substr(7);
-                    dirOfOutputPath = require('path').dirname(outputPath);
-                    if (!fs__namespace.existsSync(dirOfOutputPath))
-                        fs__namespace.mkdirSync(dirOfOutputPath, { recursive: true });
-                    fs__namespace.copyFileSync(f.localPath, outputPath);
+            var staticFiles, _i, staticFiles_1, f, outputPath, dirOfOutputPath, _a, _b, _c;
+            return __generator(this, function (_d) {
+                switch (_d.label) {
+                    case 0:
+                        fs__namespace.mkdirSync(outputDir, { recursive: true });
+                        staticFiles = this.files.getFiles().filter(function (x) { return x.path.startsWith('static/'); });
+                        for (_i = 0, staticFiles_1 = staticFiles; _i < staticFiles_1.length; _i++) {
+                            f = staticFiles_1[_i];
+                            outputPath = outputDir + "/" + f.path.substr(7);
+                            dirOfOutputPath = require('path').dirname(outputPath);
+                            if (!fs__namespace.existsSync(dirOfOutputPath))
+                                fs__namespace.mkdirSync(dirOfOutputPath, { recursive: true });
+                            fs__namespace.copyFileSync(f.localPath, outputPath);
+                        }
+                        fs__namespace.writeFileSync(outputDir + "/index.html", this.getFrontendIndex());
+                        _b = (_a = fs__namespace).writeFileSync;
+                        _c = [outputDir + "/zip-frontend-generated-code.js"];
+                        return [4 /*yield*/, this.getFrontendScript()];
+                    case 1:
+                        _b.apply(_a, _c.concat([_d.sent()]));
+                        return [2 /*return*/];
                 }
-                fs__namespace.writeFileSync(outputDir + "/index.html", this.getFrontendIndex());
-                return [2 /*return*/];
             });
         });
     };

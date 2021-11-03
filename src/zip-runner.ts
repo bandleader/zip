@@ -138,6 +138,7 @@ export class ZipRunner {
       fs.copyFileSync(f.localPath, outputPath)
     }
     fs.writeFileSync(`${outputDir}/index.html`, this.getFrontendIndex())
+    fs.writeFileSync(`${outputDir}/zip-frontend-generated-code.js`, await this.getFrontendScript())
   }
 
   serve(opts: { app?: Express.Application, preBind?: (app: Express.Application) => void, port?: number, listen?: boolean } = {}) {
