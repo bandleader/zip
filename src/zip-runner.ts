@@ -127,6 +127,19 @@ export class ZipRunner {
     this.startBackend()
   }
 
+  async build(outputDir: string) {
+    fs.mkdirSync(outputDir, { recursive: true })
+    const staticFiles = this.files.getFiles().filter(x => x.path.startsWith('static/'))
+    for (const f of staticFiles) {
+      const outputPath = `${outputDir}/${f.path.substr(7)}`
+      // console.log(f.localPath, outputPath)
+      const dirOfOutputPath: string = require('path').dirname(outputPath)
+      if (!fs.existsSync(dirOfOutputPath)) fs.mkdirSync(dirOfOutputPath, { recursive: true })
+      fs.copyFileSync(f.localPath, outputPath)
+    }
+    fs.writeFileSync(`${outputDir}/index.html`, this.getFrontendIndex())
+  }
+
   serve(opts: { app?: Express.Application, preBind?: (app: Express.Application) => void, port?: number, listen?: boolean } = {}) {
     const app = opts.app || Express()
     if (opts.preBind) opts.preBind(app)

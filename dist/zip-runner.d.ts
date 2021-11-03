@@ -14,7 +14,7 @@ declare type ZipSite = {
     backend?: Record<string, Function>;
 };
 declare function localFilesystem(root: string): {
-    getFiles: (dirPrefix?: string) => {
+    getFiles: () => {
         path: string;
         localPath?: string;
     }[];
@@ -53,6 +53,7 @@ export declare class ZipRunner {
     };
     files: LocalFS;
     constructor(site?: ZipSite);
+    build(outputDir: string): Promise<void>;
     serve(opts?: {
         app?: Express.Application;
         preBind?: (app: Express.Application) => void;

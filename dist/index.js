@@ -859,19 +859,20 @@ function localFilesystem(root) {
         return (_a = require('path')).resolve.apply(_a, args).replace(/\\/g, "/");
     };
     var localRoot = resolve(root);
-    var getFiles = function (dirPrefix) {
+    var getFilesInner = function (dirPrefix) {
         if (dirPrefix === void 0) { dirPrefix = ""; }
         var localDir = resolve(root, dirPrefix);
         return flatMap(fs__namespace.readdirSync(localDir), function (file) {
             var localPath = localDir + "/" + file;
             return fs__namespace.statSync(localPath).isDirectory()
-                ? getFiles("" + dirPrefix + file + "/")
+                ? getFilesInner("" + dirPrefix + file + "/")
                 : [{ path: dirPrefix + file, localPath: localPath }];
         });
     };
+    var getFiles = function () { return getFilesInner(); }; // because we don't want the dirPrefix argument exposed
     var readFileSync = function (path) {
         var localPath = resolve(root, path);
-        console.log("reading " + path + " (" + localPath + ")");
+        // console.log(`Local FS: Reading ${path} (${localPath})`)
         if (!localPath.startsWith(localRoot + "/"))
             throw "Path " + path + " is below the root";
         return fs__namespace.readFileSync(localPath, { encoding: "utf8" });
@@ -932,6 +933,25 @@ var ZipRunner = /** @class */ (function () {
         site.basePath = site.basePath || "/";
         this.startBackend();
     }
+    ZipRunner.prototype.build = function (outputDir) {
+        return __awaiter(this, void 0, void 0, function () {
+            var staticFiles, _i, staticFiles_1, f, outputPath, dirOfOutputPath;
+            return __generator(this, function (_a) {
+                fs__namespace.mkdirSync(outputDir, { recursive: true });
+                staticFiles = this.files.getFiles().filter(function (x) { return x.path.startsWith('static/'); });
+                for (_i = 0, staticFiles_1 = staticFiles; _i < staticFiles_1.length; _i++) {
+                    f = staticFiles_1[_i];
+                    outputPath = outputDir + "/" + f.path.substr(7);
+                    dirOfOutputPath = require('path').dirname(outputPath);
+                    if (!fs__namespace.existsSync(dirOfOutputPath))
+                        fs__namespace.mkdirSync(dirOfOutputPath, { recursive: true });
+                    fs__namespace.copyFileSync(f.localPath, outputPath);
+                }
+                fs__namespace.writeFileSync(outputDir + "/index.html", this.getFrontendIndex());
+                return [2 /*return*/];
+            });
+        });
+    };
     ZipRunner.prototype.serve = function (opts) {
         if (opts === void 0) { opts = {}; }
         var app = opts.app || Express__namespace();
