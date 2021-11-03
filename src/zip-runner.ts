@@ -55,15 +55,16 @@ function flatMap<T, U>(array: T[], callbackfn: (value: T, index: number, array: 
 function localFilesystem(root: string) {
   const resolve = (...args: string[]): string => require('path').resolve(...args).replace(/\\/g, "/")
   const localRoot = resolve(root)
-  const getFiles = (dirPrefix = ""): { path: string, localPath?: string }[] => {
+  const getFilesInner = (dirPrefix = ""): { path: string, localPath?: string }[] => {
     const localDir = resolve(root, dirPrefix)
     return flatMap(fs.readdirSync(localDir), file => {
       const localPath = `${localDir}/${file}`
       return fs.statSync(localPath).isDirectory()
-        ? getFiles(`${dirPrefix}${file}/`)
+        ? getFilesInner(`${dirPrefix}${file}/`)
         : [ { path: dirPrefix + file, localPath } ]
     })
   }
+  const getFiles = () => getFilesInner() // because we don't want the dirPrefix argument exposed
   const readFileSync = (path: string) => {
     const localPath = resolve(root, path)
     console.log(`reading ${path} (${localPath})`)
