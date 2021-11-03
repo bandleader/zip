@@ -166,7 +166,7 @@ export class ZipRunner {
     contents = contents.replace(/\{\%siteBrand\}/g, this.site.siteBrand || this.site.siteName)
     contents = contents.replace(/\{\%basePath\}/g, this.site.basePath)
     // Inject script tag
-    const scriptTag = `<script src="/zip-frontend-generated-code.js" ${ZipRunner.mode === "ZIPBUNDLER" ? '' : 'type="module"'}></script>`
+    const scriptTag = `<script src="${this.site.basePath}zip-frontend-generated-code.js" ${ZipRunner.mode === "ZIPBUNDLER" ? '' : 'type="module"'}></script>`
     contents = contents.replace(/<\/body>/g, `${scriptTag}</body>`)
     return contents
   }
