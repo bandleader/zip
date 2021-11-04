@@ -1,6 +1,7 @@
+/// <reference types="express-serve-static-core" />
 import * as _Bundler from './bundler';
 export declare const Bundler: typeof _Bundler;
-import * as Express from 'express';
+import type * as ExpressType from 'express';
 import * as _ViteEtc from './vite-etc';
 export declare const ViteEtc: typeof _ViteEtc;
 export declare function getPackageRoot(): string;
@@ -59,7 +60,7 @@ export declare class ZipRunner {
         preBind?: (app: Express.Application) => void;
         port?: number;
         listen?: boolean;
-    }): Express.Application;
+    }): ExpressType.Application;
     getFile(path: string): string;
     static mode: "ZIPBUNDLER" | "VITE" | "ROLLUP";
     getFrontendIndex(): string;

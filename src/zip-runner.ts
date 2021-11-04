@@ -12,7 +12,7 @@ export const Bundler = _Bundler
 import GraphQueryRunner from './graph'
 import * as Identity from './identity'
 import * as fs from 'fs'
-import * as Express from 'express'
+import type * as ExpressType from 'express' // These definitions are more correct than via require('express') for some reason. But I don't want to top-level-import it because unless serving there is no need for it
 import * as _ViteEtc from './vite-etc'
 export const ViteEtc = _ViteEtc
 
@@ -142,8 +142,8 @@ export class ZipRunner {
   }
 
   serve(opts: { app?: Express.Application, preBind?: (app: Express.Application) => void, port?: number, listen?: boolean } = {}) {
-    const ExpressConstructor: typeof Express = (Express as any).default || Express // rollup does not seem to import the default properly. And even when using import ExpressDefault from 'express'. Typescript complains that it's a 'synthetic default'; that's probably why https://www.typescriptlang.org/tsconfig#allowSyntheticDefaultImports
-    const app = opts.app || ExpressConstructor()
+    const Express = require('express')
+    const app: ExpressType.Application = opts.app || Express()
     if (opts.preBind) opts.preBind(app)
     app.use(Express.static("./zip-src/static"))
     app.use(Express.static(__dirname + "/../default-files/static"))

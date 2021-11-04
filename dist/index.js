@@ -4,7 +4,6 @@ Object.defineProperty(exports, '__esModule', { value: true });
 
 var Crypto = require('crypto');
 var fs = require('fs');
-var Express = require('express');
 var path = require('path');
 
 function _interopNamespace(e) {
@@ -29,7 +28,6 @@ function _interopNamespace(e) {
 
 var Crypto__namespace = /*#__PURE__*/_interopNamespace(Crypto);
 var fs__namespace = /*#__PURE__*/_interopNamespace(fs);
-var Express__namespace = /*#__PURE__*/_interopNamespace(Express);
 var path__namespace = /*#__PURE__*/_interopNamespace(path);
 
 /*! *****************************************************************************
@@ -962,12 +960,12 @@ var ZipRunner = /** @class */ (function () {
     };
     ZipRunner.prototype.serve = function (opts) {
         if (opts === void 0) { opts = {}; }
-        var ExpressConstructor = Express__namespace.default || Express__namespace; // rollup does not seem to import the default properly. And even when using import ExpressDefault from 'express'. Typescript complains that it's a 'synthetic default'; that's probably why https://www.typescriptlang.org/tsconfig#allowSyntheticDefaultImports
-        var app = opts.app || ExpressConstructor();
+        var Express = require('express');
+        var app = opts.app || Express();
         if (opts.preBind)
             opts.preBind(app);
-        app.use(Express__namespace.static("./zip-src/static"));
-        app.use(Express__namespace.static(__dirname + "/../default-files/static"));
+        app.use(Express.static("./zip-src/static"));
+        app.use(Express.static(__dirname + "/../default-files/static"));
         app.all("*", this.handler);
         var port = opts.port || process.env.PORT || 3000;
         if (opts.listen !== false)

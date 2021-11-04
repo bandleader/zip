@@ -1,6 +1,5 @@
 import * as Crypto from 'crypto';
 import * as fs from 'fs';
-import * as Express from 'express';
 import * as path from 'path';
 
 /*! *****************************************************************************
@@ -933,8 +932,8 @@ var ZipRunner = /** @class */ (function () {
     };
     ZipRunner.prototype.serve = function (opts) {
         if (opts === void 0) { opts = {}; }
-        var ExpressConstructor = Express.default || Express; // rollup does not seem to import the default properly. And even when using import ExpressDefault from 'express'. Typescript complains that it's a 'synthetic default'; that's probably why https://www.typescriptlang.org/tsconfig#allowSyntheticDefaultImports
-        var app = opts.app || ExpressConstructor();
+        var Express = require('express');
+        var app = opts.app || Express();
         if (opts.preBind)
             opts.preBind(app);
         app.use(Express.static("./zip-src/static"));
