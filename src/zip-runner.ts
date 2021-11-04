@@ -142,7 +142,8 @@ export class ZipRunner {
   }
 
   serve(opts: { app?: Express.Application, preBind?: (app: Express.Application) => void, port?: number, listen?: boolean } = {}) {
-    const app = opts.app || Express()
+    const ExpressConstructor: typeof Express = (Express as any).default || Express // rollup does not seem to import the default properly. And even when using import ExpressDefault from 'express'. Typescript complains that it's a 'synthetic default'; that's probably why https://www.typescriptlang.org/tsconfig#allowSyntheticDefaultImports
+    const app = opts.app || ExpressConstructor()
     if (opts.preBind) opts.preBind(app)
     app.use(Express.static("./zip-src/static"))
     app.use(Express.static(__dirname + "/../default-files/static"))

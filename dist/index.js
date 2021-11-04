@@ -962,7 +962,8 @@ var ZipRunner = /** @class */ (function () {
     };
     ZipRunner.prototype.serve = function (opts) {
         if (opts === void 0) { opts = {}; }
-        var app = opts.app || Express__namespace();
+        var ExpressConstructor = Express__namespace.default || Express__namespace; // rollup does not seem to import the default properly. And even when using import ExpressDefault from 'express'. Typescript complains that it's a 'synthetic default'; that's probably why https://www.typescriptlang.org/tsconfig#allowSyntheticDefaultImports
+        var app = opts.app || ExpressConstructor();
         if (opts.preBind)
             opts.preBind(app);
         app.use(Express__namespace.static("./zip-src/static"));
