@@ -313,8 +313,8 @@ export class SimpleBundler {
     return `(function() {
       var tempModule = { exports: {} }
       var tempFactory = ${SimpleBundler.moduleCodeToFactoryFunc(jsCode)}
-      ${blockRequire ? `var require = function() { throw "Error: require() cannot be called when using 'moduleCodeToIife'" }` : ''}
-      tempFactory(tempModule, tempModule.exports, typeof require === 'undefined' ? undefined : require)
+      // ${blockRequire ? `var require = function() { throw "Error: require() cannot be called when using 'moduleCodeToIife'" }` : ''}
+      tempFactory(tempModule, tempModule.exports, typeof __requireByKey !== 'undefined' ? __requireByKey : typeof require !== 'undefined' ? require : undefined)
       ${useDefaultExportIfNoNamedExports ? `if (Object.keys(tempModule.exports).length === 1 && ('default' in tempModule.exports)) return tempModule.exports.default` : ''}
       return tempModule.exports
     })()`

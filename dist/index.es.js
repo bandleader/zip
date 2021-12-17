@@ -344,7 +344,7 @@ var SimpleBundler = /** @class */ (function () {
         if (blockRequire === void 0) { blockRequire = false; }
         // IIFE will return the exports object, or the default export if that's all there is and `useDefaultExportIfThatsAllThereIs` is set
         // Re: `useDefaultExportIfNoNamedExports`, see its definition in `requireByKey`
-        return "(function() {\n      var tempModule = { exports: {} }\n      var tempFactory = " + SimpleBundler.moduleCodeToFactoryFunc(jsCode) + "\n      " + (blockRequire ? "var require = function() { throw \"Error: require() cannot be called when using 'moduleCodeToIife'\" }" : '') + "\n      tempFactory(tempModule, tempModule.exports, typeof require === 'undefined' ? undefined : require)\n      " + (useDefaultExportIfNoNamedExports ? "if (Object.keys(tempModule.exports).length === 1 && ('default' in tempModule.exports)) return tempModule.exports.default" : '') + "\n      return tempModule.exports\n    })()";
+        return "(function() {\n      var tempModule = { exports: {} }\n      var tempFactory = " + SimpleBundler.moduleCodeToFactoryFunc(jsCode) + "\n      // " + (blockRequire ? "var require = function() { throw \"Error: require() cannot be called when using 'moduleCodeToIife'\" }" : '') + "\n      tempFactory(tempModule, tempModule.exports, typeof __requireByKey !== 'undefined' ? __requireByKey : typeof require !== 'undefined' ? require : undefined)\n      " + (useDefaultExportIfNoNamedExports ? "if (Object.keys(tempModule.exports).length === 1 && ('default' in tempModule.exports)) return tempModule.exports.default" : '') + "\n      return tempModule.exports\n    })()";
     };
     SimpleBundler._createModuleLoader = function createModuleLoader(factories) {
         var modules = {};
