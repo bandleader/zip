@@ -217,18 +217,22 @@ export class SimpleBundler {
 
   bundle() {
     const compiledModules: (InputModule & {factoryFuncString: string})[] = []
+    const requireFuncName = `requireByKey${Math.trunc(Math.random()*10000)}`
     for (let i = 0; i < this.modulesToBundle.length; i++) { // Purposely a simple for loop because the array's length will keep increasing
       const thisModule = this.modulesToBundle[i]
-      const factoryFuncString = SimpleBundler.moduleCodeToFactoryFunc(thisModule.codeString, path => {
+      let code = thisModule.codeString
+      code = SimpleBundler.moduleCodeToFactoryFunc2(code)
+      code = SimpleBundler.processRequires(code, (path, es6Namespace) => {
         const resolvedModule = this.resolveAndAddModule(path, { fromModuleAtPath: thisModule.key })
-        return { key: resolvedModule.key }        
+        return `${requireFuncName}(${JSON.stringify(resolvedModule.key), es6Namespace})`
       })
-      compiledModules.push({ ...thisModule, factoryFuncString })
+      compiledModules.push({ ...thisModule, factoryFuncString: code })
     }
 
     // Return loader code
     return `
       ;(function(){
+        let ${requireFuncName} = function() { } // placeholder till later. We need it to already be in scope for the functions which will be defined in the next statement, and yet we don't have it until we have the loader -- but that's OK because we only execute the functions once we have the loader
         const factories = [
           ${compiledModules.map(m => `{
             key: ${JSON.stringify(m.key)},
@@ -238,46 +242,41 @@ export class SimpleBundler {
         ]
         const createModuleLoader = ${SimpleBundler._createModuleLoader}
         const loader = createModuleLoader(factories)
+        ${requireFuncName} = loader.requireByKey // resolve from earlier, before the factory funcs actually run
         // Immediately run any 'main' modules
         factories.filter(x => x.main).forEach(x => loader.requireByKey(x.key)) 
       })()
     `
   }
-  static moduleCodeToFactoryFunc_simple(jsCode: string, importCallback?: (path: string) => { key: string }|void) {
+  static moduleCodeToFactoryFunc2(jsCode: string) {
+    // A "factory function" is a function that takes args: (module, exports)
+    // jsCode must *already* be in CommonJS format, i.e. mutates module.exports (or exports)
+    return `function(module, exports, __requireByKey) {\n${jsCode}\n}`    
   }
-
-
-  static moduleCodeToFactoryFunc(jsCode: string, importCallback?: (path: string) => { key: string }|void) {
-    // A "factory function" is a function that takes args (module, exports, __requireByKey) and mutates module.exports (or exports)
-    // The argument `importCallback` lets you trap imports within the code (so you can add the module), and optionally change the key
-    /* 2021: `importCallback` is now allowed to return void, which will not add a module, and will leave the import/require call as is.
-          However, I realized that for this to be useful we have to give that power to `resolver`,
-          meaning it should be allowed to return a { external: true } or something
-          And also, `resolveAndAddModule` would have to sometimes return null, if the resolver says so
-          And that somewhat complicates things
-          Another approach is to add the module to the list, just mark it external, so we don't include it in the bundle
-    */
-
-    if (importCallback) {
-      const performReplacements = (regExp: RegExp, getPath: (replaceCallbackArgs: string[]) => string, newSyntax: (key: string, replaceCallbackArgs: string[]) => string) => {
-          jsCode = jsCode.replace(regExp, (...args) => {
-            const path = getPath(args)
-            const importResult = importCallback(path)      
-            if (!importResult) return args[0] // If the importCallback doesn't wish to convert this import (i.e. it's for an external module etc.), leave it as is
-            return newSyntax(importResult.key, args)
-          })
-      }
-      performReplacements(/require\([\'\"](.+?)[\'\"]\)/g, ([_, path]) => path, key => `__requireByKey(${JSON.stringify(key)})`)
-      // EXPERIMENTAL: also allow ES6 import syntax
-      // default imports: import foo from 'module'
-      performReplacements(/[ \t]*import ([A-Za-z0-9_]+) from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, ([whole,identifier,path]) => path, (key,[whole,identifier]) => `const ${identifier} = __requireByKey(${JSON.stringify(key)}, false).default`)
-      // namespaced entire import: import * as foo from 'module'
-      performReplacements(/[ \t]*import \* as ([A-Za-z0-9_]+) from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, ([whole,identifier,path]) => path, (key,[whole,identifier]) => `const ${identifier} = __requireByKey(${JSON.stringify(key)}, false)`)
-      // named imports: import { a, b, c } from 'module'
-      performReplacements(/[ \t]*import \{([A-Za-z0-9_, ]+)\} from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, ([whole,imports,path] )=> path, (key,[whole,imports]) => `const { ${imports} } = __requireByKey(${JSON.stringify(key)}, false)`)
+  static moduleCodeToIife(jsCode: string, useDefaultExportIfNoNamedExports = true) {
+    // IIFE will return the exports object, or the default export if that's all there is and `useDefaultExportIfThatsAllThereIs` is set
+    // Re: `useDefaultExportIfNoNamedExports`, see its definition in `requireByKey`
+    return `(function() {
+      var tempModule = { exports: {} }
+      var tempFactory = ${SimpleBundler.moduleCodeToFactoryFunc2(jsCode)}
+      tempFactory(tempModule, tempModule.exports)
+      ${useDefaultExportIfNoNamedExports ? `if (Object.keys(tempModule.exports).length === 1 && ('default' in tempModule.exports)) return tempModule.exports.default` : ''}
+      return tempModule.exports
+    })()`
+  }
+  static processRequires(jsCode: string, importCallback: (path: string, es6Namespace: boolean) => string) {
+    const go = (regExp: RegExp, newSyntax: (replaceArgs: string[])=>string) => {
+      jsCode = jsCode.replace(regExp, (...args) => newSyntax(args))
     }
-
-    // EXPERIMENTAL: Convert ES6 export syntax. For now we only support `export default <expr>`
+    go(/require\([\'\"](.+?)[\'\"]\)/g, ([_, path]) => importCallback(path, false))
+    // default imports: import foo from 'module'
+    go(/[ \t]*import ([A-Za-z0-9_]+) from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, ([whole,identifier,path]) => `const ${identifier} = ${importCallback(path, true)}.default`)
+    // namespaced entire import: import * as foo from 'module'
+    go(/[ \t]*import \* as ([A-Za-z0-9_]+) from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, ([whole,identifier,path]) => `const ${identifier} = ${importCallback(path, true)}`)
+    // named imports: import { a, b, c } from 'module'
+    go(/[ \t]*import \{([A-Za-z0-9_, ]+)\} from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, ([whole,imports,path] ) => `const { ${imports} } = ${importCallback(path, true)}`)
+    
+    // EXPERIMENTAL: Convert ES6 *export* syntax too. For now we only support `export default <expr>`
     jsCode = jsCode.replace(/export default /g, "module.exports.default = ")
     /* TODO: allow named exports too
         (function(module) { module = module || {}; module.exports = {}; CODE_HERE; return module.exports })
@@ -301,24 +300,8 @@ export class SimpleBundler {
             return `${ourDecl} ${export.name} = module.exports.${export.name} = `
         }
     */
-    
-    // Wrap in a factory function
-    // jsCode = jsCode.split("\n").map(x => `  ${x}`).join("\n") // Optionally: Indent nicely
-    jsCode = `function(module, exports, __requireByKey) {\n${jsCode}\n}`
     return jsCode
   }
-  static moduleCodeToIife(jsCode: string, useDefaultExportIfNoNamedExports = true, blockRequire = false /* i.e. for external modules */) {
-    // IIFE will return the exports object, or the default export if that's all there is and `useDefaultExportIfThatsAllThereIs` is set
-    // Re: `useDefaultExportIfNoNamedExports`, see its definition in `requireByKey`
-    return `(function() {
-      var tempModule = { exports: {} }
-      var tempFactory = ${SimpleBundler.moduleCodeToFactoryFunc(jsCode)}
-      // ${blockRequire ? `var require = function() { throw "Error: require() cannot be called when using 'moduleCodeToIife'" }` : ''}
-      tempFactory(tempModule, tempModule.exports, typeof __requireByKey !== 'undefined' ? __requireByKey : typeof require !== 'undefined' ? require : undefined)
-      ${useDefaultExportIfNoNamedExports ? `if (Object.keys(tempModule.exports).length === 1 && ('default' in tempModule.exports)) return tempModule.exports.default` : ''}
-      return tempModule.exports
-    })()`
-  }  
 }
 
 function testSimpleBundler() {

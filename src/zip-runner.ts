@@ -180,7 +180,7 @@ export class ZipRunner {
     if (!backend) {
       const backendModuleText = this.files.getFiles().some(x => x.path==="backend.js") ? this.getFile("backend.js") : ""
       // TODO use clearableScheduler
-      backend = Bundler.evalEx(Bundler.SimpleBundler.moduleCodeToIife(backendModuleText, undefined, true), { require })
+      backend = Bundler.evalEx(Bundler.SimpleBundler.moduleCodeToIife(backendModuleText), { require })
       if (typeof backend === 'function') backend = (backend as any).backend()
     }
     
