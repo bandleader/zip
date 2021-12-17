@@ -275,7 +275,7 @@ var SimpleBundler = /** @class */ (function () {
             code = SimpleBundler.convertES6ExportSyntax(code);
             code = SimpleBundler.processRequires(code, function (path, es6Namespace) {
                 var resolvedModule = _this.resolveAndAddModule(path, { fromModuleAtPath: thisModule.key });
-                return requireFuncName + "(" + (JSON.stringify(resolvedModule.key), es6Namespace) + ")";
+                return requireFuncName + "(" + JSON.stringify(resolvedModule.key) + ", " + es6Namespace + ")";
             });
             compiledModules.push(__assign(__assign({}, thisModule), { factoryFuncString: code }));
         };

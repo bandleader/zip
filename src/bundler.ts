@@ -225,7 +225,7 @@ export class SimpleBundler {
       code = SimpleBundler.convertES6ExportSyntax(code)
       code = SimpleBundler.processRequires(code, (path, es6Namespace) => {
         const resolvedModule = this.resolveAndAddModule(path, { fromModuleAtPath: thisModule.key })
-        return `${requireFuncName}(${JSON.stringify(resolvedModule.key), es6Namespace})`
+        return `${requireFuncName}(${JSON.stringify(resolvedModule.key)}, ${es6Namespace})`
       })
       compiledModules.push({ ...thisModule, factoryFuncString: code })
     }
