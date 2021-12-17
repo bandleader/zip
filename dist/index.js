@@ -267,78 +267,31 @@ var SimpleBundler = /** @class */ (function () {
     SimpleBundler.prototype.bundle = function () {
         var _this = this;
         var compiledModules = [];
+        var requireFuncName = "requireByKey" + Math.trunc(Math.random() * 10000);
         var _loop_1 = function (i) {
             var thisModule = this_1.modulesToBundle[i];
-            var factoryFuncString = SimpleBundler.moduleCodeToFactoryFunc(thisModule.codeString, function (path) {
+            var code = thisModule.codeString;
+            code = SimpleBundler.moduleCodeToFactoryFunc2(code);
+            code = SimpleBundler.convertES6ExportSyntax(code);
+            code = SimpleBundler.processRequires(code, function (path, es6Namespace) {
                 var resolvedModule = _this.resolveAndAddModule(path, { fromModuleAtPath: thisModule.key });
-                return { key: resolvedModule.key };
+                return requireFuncName + "(" + (JSON.stringify(resolvedModule.key), es6Namespace) + ")";
             });
-            compiledModules.push(__assign(__assign({}, thisModule), { factoryFuncString: factoryFuncString }));
+            compiledModules.push(__assign(__assign({}, thisModule), { factoryFuncString: code }));
         };
         var this_1 = this;
         for (var i = 0; i < this.modulesToBundle.length; i++) {
             _loop_1(i);
         }
         // Return loader code
-        return "\n      ;(function(){\n        const factories = [\n          " + compiledModules.map(function (m) { return "{\n            key: " + JSON.stringify(m.key) + ",\n            factory: " + m.factoryFuncString + ",\n            main: " + !!m.main + "\n          }"; }).join(",") + "\n        ]\n        const createModuleLoader = " + SimpleBundler._createModuleLoader + "\n        const loader = createModuleLoader(factories)\n        // Immediately run any 'main' modules\n        factories.filter(x => x.main).forEach(x => loader.requireByKey(x.key)) \n      })()\n    ";
+        return "\n      ;(function(){\n        let " + requireFuncName + " = function() { } // placeholder till later. We need it to already be in scope for the functions which will be defined in the next statement, and yet we don't have it until we have the loader -- but that's OK because we only execute the functions once we have the loader\n        const factories = [\n          " + compiledModules.map(function (m) { return "{\n            key: " + JSON.stringify(m.key) + ",\n            factory: " + m.factoryFuncString + ",\n            main: " + !!m.main + "\n          }"; }).join(",") + "\n        ]\n        const createModuleLoader = " + SimpleBundler._createModuleLoader + "\n        const loader = createModuleLoader(factories)\n        " + requireFuncName + " = loader.requireByKey // resolve from earlier, before the factory funcs actually run\n        // Immediately run any 'main' modules\n        factories.filter(x => x.main).forEach(x => loader.requireByKey(x.key)) \n      })()\n    ";
     };
-    SimpleBundler.moduleCodeToFactoryFunc_simple = function (jsCode, importCallback) {
+    SimpleBundler.moduleCodeToFactoryFunc2 = function (jsCode) {
+        // A "factory function" is a function that takes args: (module, exports)
+        // jsCode must *already* be in CommonJS format, i.e. mutates module.exports (or exports)
+        return "function(module, exports, __requireByKey) {\n" + jsCode + "\n}";
     };
-    SimpleBundler.moduleCodeToFactoryFunc = function (jsCode, importCallback) {
-        // A "factory function" is a function that takes args (module, exports, __requireByKey) and mutates module.exports (or exports)
-        // The argument `importCallback` lets you trap imports within the code (so you can add the module), and optionally change the key
-        /* 2021: `importCallback` is now allowed to return void, which will not add a module, and will leave the import/require call as is.
-              However, I realized that for this to be useful we have to give that power to `resolver`,
-              meaning it should be allowed to return a { external: true } or something
-              And also, `resolveAndAddModule` would have to sometimes return null, if the resolver says so
-              And that somewhat complicates things
-              Another approach is to add the module to the list, just mark it external, so we don't include it in the bundle
-        */
-        if (importCallback) {
-            var performReplacements = function (regExp, getPath, newSyntax) {
-                jsCode = jsCode.replace(regExp, function () {
-                    var args = [];
-                    for (var _i = 0; _i < arguments.length; _i++) {
-                        args[_i] = arguments[_i];
-                    }
-                    var path = getPath(args);
-                    var importResult = importCallback(path);
-                    if (!importResult)
-                        return args[0]; // If the importCallback doesn't wish to convert this import (i.e. it's for an external module etc.), leave it as is
-                    return newSyntax(importResult.key, args);
-                });
-            };
-            performReplacements(/require\([\'\"](.+?)[\'\"]\)/g, function (_a) {
-                _a[0]; var path = _a[1];
-                return path;
-            }, function (key) { return "__requireByKey(" + JSON.stringify(key) + ")"; });
-            // EXPERIMENTAL: also allow ES6 import syntax
-            // default imports: import foo from 'module'
-            performReplacements(/[ \t]*import ([A-Za-z0-9_]+) from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, function (_a) {
-                _a[0]; _a[1]; var path = _a[2];
-                return path;
-            }, function (key, _a) {
-                _a[0]; var identifier = _a[1];
-                return "const " + identifier + " = __requireByKey(" + JSON.stringify(key) + ", false).default";
-            });
-            // namespaced entire import: import * as foo from 'module'
-            performReplacements(/[ \t]*import \* as ([A-Za-z0-9_]+) from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, function (_a) {
-                _a[0]; _a[1]; var path = _a[2];
-                return path;
-            }, function (key, _a) {
-                _a[0]; var identifier = _a[1];
-                return "const " + identifier + " = __requireByKey(" + JSON.stringify(key) + ", false)";
-            });
-            // named imports: import { a, b, c } from 'module'
-            performReplacements(/[ \t]*import \{([A-Za-z0-9_, ]+)\} from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, function (_a) {
-                _a[0]; _a[1]; var path = _a[2];
-                return path;
-            }, function (key, _a) {
-                _a[0]; var imports = _a[1];
-                return "const { " + imports + " } = __requireByKey(" + JSON.stringify(key) + ", false)";
-            });
-        }
-        // EXPERIMENTAL: Convert ES6 export syntax. For now we only support `export default <expr>`
+    SimpleBundler.convertES6ExportSyntax = function (jsCode) {
         jsCode = jsCode.replace(/export default /g, "module.exports.default = ");
         /* TODO: allow named exports too
             (function(module) { module = module || {}; module.exports = {}; CODE_HERE; return module.exports })
@@ -362,17 +315,44 @@ var SimpleBundler = /** @class */ (function () {
                 return `${ourDecl} ${export.name} = module.exports.${export.name} = `
             }
         */
-        // Wrap in a factory function
-        // jsCode = jsCode.split("\n").map(x => `  ${x}`).join("\n") // Optionally: Indent nicely
-        jsCode = "function(module, exports, __requireByKey) {\n" + jsCode + "\n}";
         return jsCode;
     };
-    SimpleBundler.moduleCodeToIife = function (jsCode, useDefaultExportIfNoNamedExports, blockRequire /* i.e. for external modules */) {
+    SimpleBundler.moduleCodeToIife = function (jsCode, useDefaultExportIfNoNamedExports) {
         if (useDefaultExportIfNoNamedExports === void 0) { useDefaultExportIfNoNamedExports = true; }
-        if (blockRequire === void 0) { blockRequire = false; }
         // IIFE will return the exports object, or the default export if that's all there is and `useDefaultExportIfThatsAllThereIs` is set
         // Re: `useDefaultExportIfNoNamedExports`, see its definition in `requireByKey`
-        return "(function() {\n      var tempModule = { exports: {} }\n      var tempFactory = " + SimpleBundler.moduleCodeToFactoryFunc(jsCode) + "\n      // " + (blockRequire ? "var require = function() { throw \"Error: require() cannot be called when using 'moduleCodeToIife'\" }" : '') + "\n      tempFactory(tempModule, tempModule.exports, typeof __requireByKey !== 'undefined' ? __requireByKey : typeof require !== 'undefined' ? require : undefined)\n      " + (useDefaultExportIfNoNamedExports ? "if (Object.keys(tempModule.exports).length === 1 && ('default' in tempModule.exports)) return tempModule.exports.default" : '') + "\n      return tempModule.exports\n    })()";
+        return "(function() {\n      var tempModule = { exports: {} }\n      var tempFactory = " + SimpleBundler.moduleCodeToFactoryFunc2(jsCode) + "\n      tempFactory(tempModule, tempModule.exports)\n      " + (useDefaultExportIfNoNamedExports ? "if (Object.keys(tempModule.exports).length === 1 && ('default' in tempModule.exports)) return tempModule.exports.default" : '') + "\n      return tempModule.exports\n    })()";
+    };
+    SimpleBundler.processRequires = function (jsCode, importCallback) {
+        var go = function (regExp, newSyntax) {
+            jsCode = jsCode.replace(regExp, function () {
+                var args = [];
+                for (var _i = 0; _i < arguments.length; _i++) {
+                    args[_i] = arguments[_i];
+                }
+                return newSyntax(args);
+            });
+        };
+        go(/require\([\'\"](.+?)[\'\"]\)/g, function (_a) {
+            _a[0]; var path = _a[1];
+            return importCallback(path, false);
+        });
+        // default imports: import foo from 'module'
+        go(/[ \t]*import ([A-Za-z0-9_]+) from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, function (_a) {
+            _a[0]; var identifier = _a[1], path = _a[2];
+            return "const " + identifier + " = " + importCallback(path, true) + ".default";
+        });
+        // namespaced entire import: import * as foo from 'module'
+        go(/[ \t]*import \* as ([A-Za-z0-9_]+) from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, function (_a) {
+            _a[0]; var identifier = _a[1], path = _a[2];
+            return "const " + identifier + " = " + importCallback(path, true);
+        });
+        // named imports: import { a, b, c } from 'module'
+        go(/[ \t]*import \{([A-Za-z0-9_, ]+)\} from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, function (_a) {
+            _a[0]; var imports = _a[1], path = _a[2];
+            return "const { " + imports + " } = " + importCallback(path, true);
+        });
+        return jsCode;
     };
     SimpleBundler._createModuleLoader = function createModuleLoader(factories) {
         var modules = {};
@@ -994,8 +974,10 @@ var ZipRunner = /** @class */ (function () {
         // Allow using a file in the Zip VFS called `backend.js`
         if (!backend) {
             var backendModuleText = this.files.getFiles().some(function (x) { return x.path === "backend.js"; }) ? this.getFile("backend.js") : "";
+            backendModuleText = Bundler.SimpleBundler.moduleCodeToIife(backendModuleText);
+            backendModuleText = Bundler.SimpleBundler.convertES6ExportSyntax(backendModuleText);
             // TODO use clearableScheduler
-            backend = Bundler.evalEx(Bundler.SimpleBundler.moduleCodeToIife(backendModuleText, undefined, true), { require: require });
+            backend = Bundler.evalEx(backendModuleText, { require: require });
             if (typeof backend === 'function')
                 backend = backend.backend();
         }
@@ -1093,13 +1075,14 @@ var ZipRunner = /** @class */ (function () {
                         build = _a.sent();
                         console.log("BUILD PRODUCED:", build);
                         out = build.output.map(function (x) { return x.type === 'chunk' ? x.code : ''; }).join("\n;\n");
-                        _a.label = 2;
+                        return [3 /*break*/, 3];
                     case 2:
                         // Let's ESBuild it, to support TS
                         out = require('esbuild').transformSync(out, {
                             loader: 'ts'
                         }).code;
-                        return [2 /*return*/, out];
+                        _a.label = 3;
+                    case 3: return [2 /*return*/, out];
                 }
             });
         });
@@ -1199,7 +1182,7 @@ var ZipFrontend = /** @class */ (function () {
             var _a;
             return newMode
                 ? "import vue" + i + " from '/" + (((_a = f.localPath) === null || _a === void 0 ? void 0 : _a.includes("default-files")) ? '_ZIPDEFAULTFILES/' : '') + f.path + "'"
-                : "const vue" + i + " = " + Bundler.SimpleBundler.moduleCodeToIife(Bundler.VueSfcs.convVueSfcToESModule(_this.files.readFileSync(f.path), { classTransformer: Bundler.VueSfcs.vueClassTransformerScript() }));
+                : "const vue" + i + " = " + Bundler.SimpleBundler.convertES6ExportSyntax(Bundler.SimpleBundler.moduleCodeToIife(Bundler.VueSfcs.convVueSfcToESModule(_this.files.readFileSync(f.path), { classTransformer: Bundler.VueSfcs.vueClassTransformerScript() })));
         }) + "\n      const vues = [" + files.map(function (_, i) { return "vue" + i; }) + "]\n            \n      ";
         var storeFile = this.files.getFiles().find(function (x) { return x.path === "store.ts" || x.path === "store.js"; });
         if (storeFile)

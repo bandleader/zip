@@ -178,9 +178,11 @@ export class ZipRunner {
     
     // Allow using a file in the Zip VFS called `backend.js`
     if (!backend) {
-      const backendModuleText = this.files.getFiles().some(x => x.path==="backend.js") ? this.getFile("backend.js") : ""
+      let backendModuleText = this.files.getFiles().some(x => x.path==="backend.js") ? this.getFile("backend.js") : ""
+      backendModuleText = Bundler.SimpleBundler.moduleCodeToIife(backendModuleText)
+      backendModuleText = Bundler.SimpleBundler.convertES6ExportSyntax(backendModuleText)
       // TODO use clearableScheduler
-      backend = Bundler.evalEx(Bundler.SimpleBundler.moduleCodeToIife(backendModuleText), { require })
+      backend = Bundler.evalEx(backendModuleText, { require })
       if (typeof backend === 'function') backend = (backend as any).backend()
     }
     
@@ -260,12 +262,12 @@ export class ZipRunner {
       })
       console.log("BUILD PRODUCED:", build)
       out = (build as any).output.map((x: any) => x.type === 'chunk' ? x.code : '').join("\n;\n")
+    } else {
+      // Let's ESBuild it, to support TS
+      out = require('esbuild').transformSync(out, {
+        loader: 'ts'
+      }).code
     }
-    // Let's ESBuild it, to support TS
-    out = require('esbuild').transformSync(out, {
-      loader: 'ts'
-    }).code    
-
     return out
   }
  
@@ -351,7 +353,7 @@ export class ZipFrontend {
       // Import the Vue files
       ${lines((f,i) => newMode
          ? `import vue${i} from '/${f.localPath?.includes("default-files") ? '_ZIPDEFAULTFILES/' : ''}${f.path}'` 
-         : `const vue${i} = ${Bundler.SimpleBundler.moduleCodeToIife(Bundler.VueSfcs.convVueSfcToESModule(this.files.readFileSync(f.path), { classTransformer: Bundler.VueSfcs.vueClassTransformerScript() }))}`
+         : `const vue${i} = ${Bundler.SimpleBundler.convertES6ExportSyntax(Bundler.SimpleBundler.moduleCodeToIife(Bundler.VueSfcs.convVueSfcToESModule(this.files.readFileSync(f.path), { classTransformer: Bundler.VueSfcs.vueClassTransformerScript() })))}`
         )}
       const vues = [${files.map((_,i) => `vue${i}`)}]
             

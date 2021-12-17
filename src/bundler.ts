@@ -222,6 +222,7 @@ export class SimpleBundler {
       const thisModule = this.modulesToBundle[i]
       let code = thisModule.codeString
       code = SimpleBundler.moduleCodeToFactoryFunc2(code)
+      code = SimpleBundler.convertES6ExportSyntax(code)
       code = SimpleBundler.processRequires(code, (path, es6Namespace) => {
         const resolvedModule = this.resolveAndAddModule(path, { fromModuleAtPath: thisModule.key })
         return `${requireFuncName}(${JSON.stringify(resolvedModule.key), es6Namespace})`
@@ -253,30 +254,7 @@ export class SimpleBundler {
     // jsCode must *already* be in CommonJS format, i.e. mutates module.exports (or exports)
     return `function(module, exports, __requireByKey) {\n${jsCode}\n}`    
   }
-  static moduleCodeToIife(jsCode: string, useDefaultExportIfNoNamedExports = true) {
-    // IIFE will return the exports object, or the default export if that's all there is and `useDefaultExportIfThatsAllThereIs` is set
-    // Re: `useDefaultExportIfNoNamedExports`, see its definition in `requireByKey`
-    return `(function() {
-      var tempModule = { exports: {} }
-      var tempFactory = ${SimpleBundler.moduleCodeToFactoryFunc2(jsCode)}
-      tempFactory(tempModule, tempModule.exports)
-      ${useDefaultExportIfNoNamedExports ? `if (Object.keys(tempModule.exports).length === 1 && ('default' in tempModule.exports)) return tempModule.exports.default` : ''}
-      return tempModule.exports
-    })()`
-  }
-  static processRequires(jsCode: string, importCallback: (path: string, es6Namespace: boolean) => string) {
-    const go = (regExp: RegExp, newSyntax: (replaceArgs: string[])=>string) => {
-      jsCode = jsCode.replace(regExp, (...args) => newSyntax(args))
-    }
-    go(/require\([\'\"](.+?)[\'\"]\)/g, ([_, path]) => importCallback(path, false))
-    // default imports: import foo from 'module'
-    go(/[ \t]*import ([A-Za-z0-9_]+) from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, ([whole,identifier,path]) => `const ${identifier} = ${importCallback(path, true)}.default`)
-    // namespaced entire import: import * as foo from 'module'
-    go(/[ \t]*import \* as ([A-Za-z0-9_]+) from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, ([whole,identifier,path]) => `const ${identifier} = ${importCallback(path, true)}`)
-    // named imports: import { a, b, c } from 'module'
-    go(/[ \t]*import \{([A-Za-z0-9_, ]+)\} from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, ([whole,imports,path] ) => `const { ${imports} } = ${importCallback(path, true)}`)
-    
-    // EXPERIMENTAL: Convert ES6 *export* syntax too. For now we only support `export default <expr>`
+  static convertES6ExportSyntax(jsCode: string) {
     jsCode = jsCode.replace(/export default /g, "module.exports.default = ")
     /* TODO: allow named exports too
         (function(module) { module = module || {}; module.exports = {}; CODE_HERE; return module.exports })
@@ -300,6 +278,31 @@ export class SimpleBundler {
             return `${ourDecl} ${export.name} = module.exports.${export.name} = `
         }
     */
+    return jsCode
+  }
+  static moduleCodeToIife(jsCode: string, useDefaultExportIfNoNamedExports = true) {
+    // IIFE will return the exports object, or the default export if that's all there is and `useDefaultExportIfThatsAllThereIs` is set
+    // Re: `useDefaultExportIfNoNamedExports`, see its definition in `requireByKey`
+    return `(function() {
+      var tempModule = { exports: {} }
+      var tempFactory = ${SimpleBundler.moduleCodeToFactoryFunc2(jsCode)}
+      tempFactory(tempModule, tempModule.exports)
+      ${useDefaultExportIfNoNamedExports ? `if (Object.keys(tempModule.exports).length === 1 && ('default' in tempModule.exports)) return tempModule.exports.default` : ''}
+      return tempModule.exports
+    })()`
+  }
+  static processRequires(jsCode: string, importCallback: (path: string, es6Namespace: boolean) => string) {
+    const go = (regExp: RegExp, newSyntax: (replaceArgs: string[])=>string) => {
+      jsCode = jsCode.replace(regExp, (...args) => newSyntax(args))
+    }
+    go(/require\([\'\"](.+?)[\'\"]\)/g, ([_, path]) => importCallback(path, false))
+    // default imports: import foo from 'module'
+    go(/[ \t]*import ([A-Za-z0-9_]+) from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, ([whole,identifier,path]) => `const ${identifier} = ${importCallback(path, true)}.default`)
+    // namespaced entire import: import * as foo from 'module'
+    go(/[ \t]*import \* as ([A-Za-z0-9_]+) from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, ([whole,identifier,path]) => `const ${identifier} = ${importCallback(path, true)}`)
+    // named imports: import { a, b, c } from 'module'
+    go(/[ \t]*import \{([A-Za-z0-9_, ]+)\} from (?:"|')([a-zA-z0-9 \.\/\\\-_]+)(?:"|')/g, ([whole,imports,path] ) => `const { ${imports} } = ${importCallback(path, true)}`)
+    
     return jsCode
   }
 }
