@@ -19,8 +19,11 @@ export function QRPC(backend: Record<string, Function>, endpointUrl = "/api") {
         const result = fetch(${JSON.stringify(endpointUrlString)} + "method=" + method + "&args=" + encodeURIComponent(JSON.stringify(args)), { method: "POST" })
         const jsonResult = result.then(x => x.json())
         return jsonResult.then(json => {
-        if (json.err) throw "Server returned error: " + json.err
-        return json.result
+            if (json.err) {
+                console.error("RPC: Server returned error:", json.err)
+                throw "Server returned error: " + JSON.stringify(json.err)    
+            }
+            return json.result
         })
     }
     return {\n
@@ -42,6 +45,7 @@ export function QRPC(backend: Record<string, Function>, endpointUrl = "/api") {
           res.json({result})
         }
       } catch (err) {
+        console.error(`Error in RPC action '${method}':`, err)
         res.json({err})
       }
     }
