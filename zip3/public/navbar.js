@@ -27,7 +27,7 @@ export default {
 <nav class="navbar navbar-expand-lg">
     <div class="container-fluid">
       <a class="navbar-brand" href="#" style="color: inherit">{{$attrs.heading || 'Zip Example'}}</a>
-      <span class="d-inline-block">
+      <span class="d-inline-block text-end">
         <session-area />
       </span>
       <!--<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarColor01" aria-controls="navbarColor01" aria-expanded="false" aria-label="Toggle navigation">
