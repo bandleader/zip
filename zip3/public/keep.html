@@ -28,7 +28,7 @@
                     <div class="card clickable mt-4 ">
                         <input class="form-control" :style="n.title ? {fontSize: '1.1em', fontWeight: 'bold'} : { opacity: 0.5 }" style="border-width: 0; box-shadow: none;" v-model="n.title" placeholder="Note title">
                         <textarea v-model="n.text" class="form-control" v-autoexpand 
-                            style="border-width: 0; height: 1em; resize: none; box-shadow: none;" 
+                            style="border-width: 0; height: 1em; box-shadow: none;" 
                             :style="(n.text && n.text.length < 50 && n.text.split('\n').length <= 3) ? {fontSize: '1.2em'} : null"
                             placeholder="Type your note here"></textarea>                        
                     </div>
@@ -51,6 +51,7 @@
                 mounted(el) { 
                         el.style.height = '1em'
                         el.style.height = el.scrollHeight + 'px'
+                        el.style.resize = 'none' // hide resize grabber
                         el.style.overflowY = 'hidden'
                         el.addEventListener("input", () => {
                             el.style.height = "auto"
