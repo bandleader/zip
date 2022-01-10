@@ -22,7 +22,7 @@ app.get("/module/:name", (req,res) => {
 })
 
 const zipApp = new Zip3.BackendServices()
-zipApp.handler().setup(app)
+app.all('/api', zipApp.handler())
 
 const port = 3002
 app.listen(port, () => console.log(`Listening on http://localhost:${port}`))
