@@ -1,5 +1,6 @@
 import fetch from 'node-fetch'
 import * as RPC from './rpc'
+import * as Identity from './identity'
 
 export class BackendServices {
     handler() {
@@ -21,6 +22,8 @@ export class BackendServices {
                 return analyticsUsers 
             }
         }, "/api/analytics")
+
+        const identity = Identity.identity()
         
         const storage: Record<string, string> = {}
         const storageRpc = RPC.QRPC({
@@ -31,9 +34,11 @@ export class BackendServices {
             lastReq = req
             if (req.params?.section === 'storage') return storageRpc.handler(req, res)
             if (req.params?.section === 'analytics') return analyticsRpc.handler(req, res)
+            if (req.params?.section === 'identity') return identity.apiHandler.handler(req, res)
             if (req.query.expose || req.query.callback) return await RPC.handlerForJsObj(`
                 window.API = ${storageRpc.script}
                 window.Analytics = ${analyticsRpc.script}
+                window.Identity = ${identity.script}
                 const randId = () => (Math.random() + 1).toString(36).substring(7)
                 const tabId = randId()
                 localStorage.deviceId = localStorage.deviceId || randId()
