@@ -2,7 +2,7 @@ import * as RPC from './rpc'
 
 function randId() { return Math.random().toString(36).slice(2) }
 
-export function identity() {
+export function Identity() {
     const loginTokens: Record<string/*email*/, { code: string, when: number }> = {}
     const sessionTokens: Record<string/*token*/, { email: string, when: number, ip: string }> = {}
     const apis = {

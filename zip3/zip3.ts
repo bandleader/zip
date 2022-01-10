@@ -4,7 +4,7 @@ import * as Analytics from './analytics'
 
 export class BackendServices {
     handler() {
-        const identity = Identity.identity()
+        const identity = Identity.Identity()
         const analytics = Analytics.Analytics()
         
         const storage: Record<string, string> = {}
