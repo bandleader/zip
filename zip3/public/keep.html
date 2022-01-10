@@ -22,8 +22,11 @@
             <div class="row">
                 <div v-for="n in notes" class="col-4">
                     <div class="card clickable mt-4 ">
-                        <input class="form-control" style="font-size: 1.1em; font-weight: bold; border-width: 0;" v-model="n.title" placeholder="Note title">
-                        <textarea v-model="n.text" class="form-control" v-autoexpand style="border-width: 0; height: 150px; overflow-y: auto" placeholder="Type your note here"></textarea>
+                        <input class="form-control" :style="n.title ? {fontSize: '1.1em', fontWeight: 'bold'} : { opacity: 0.5 }" style="border-width: 0;" v-model="n.title" placeholder="Note title">
+                        <textarea v-model="n.text" class="form-control" v-autoexpand 
+                            style="border-width: 0; height: 1em; overflow-y: auto" 
+                            :style="(n.text && n.text.length < 50 && n.text.split('\n').length <= 3) ? {fontSize: '1.2em'} : null"
+                            placeholder="Type your note here"></textarea>                        
                     </div>
                 </div>  
             </div>
