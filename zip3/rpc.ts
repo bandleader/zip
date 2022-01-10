@@ -28,6 +28,7 @@ export function QRPC(backend: Record<string, Function>, endpointUrl = "/api") {
         })
     }
     return {\n
+      _setEndpoint(url) { endpoint = url },
       ${Object.keys(backend).map(key => `  ${key}: function (...args) { return _call('${key}', ...args) }`).join(", \n")}
     }`
     script = `(function() {\n${indent(script)}\n})()` // Wrap in IIFE

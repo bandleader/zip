@@ -16,12 +16,13 @@ const autoheight = {
 export default {
     components: { WithSession },
     directives: { autoheight },
+    props: ['session'],
     data: () => ({
         notes: []
     }),
     async created() {
-        this.notes = await API.getItem("notes") || []
-        this.$watch('notes', x => API.setItem("notes", x), { deep: true })
+        this.notes = await this.session.storage.getItem("notes") || []
+        this.$watch('notes', x => this.session.storage.setItem("notes", x), { deep: true })
     },
     template: `
 <div class="container p-2">
