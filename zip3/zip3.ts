@@ -13,6 +13,18 @@ export class BackendServices {
     }
 }
 
+function handlerForJsObj(script: string) {
+    return async (req: any, res: any) => {
+        if (req.query.expose) {
+            res.send(`window.${req.query.expose} = ${script}`)
+        } else if (req.query.callback) {
+            res.send(`${req.query.callback}(${script})`)
+        } else {
+            throw "Unknown way of embedding script"
+        }
+    }
+}
+
 export function QRPC(backend: Record<string, Function>, endpointUrl = "/api") {
     const endpointUrlString = endpointUrl + (endpointUrl.includes("?") ? "&" : "?")
     const indent = (text: string, spaces = 2) => text.split("\n").map(x => " ".repeat(spaces) + x).join("\n")
@@ -35,10 +47,8 @@ export function QRPC(backend: Record<string, Function>, endpointUrl = "/api") {
       const method = req.query.method
       const context = { req, res, method }
       try {
-        if (req.query.expose) {
-          res.send(`window.${req.query.expose} = ${script}`)
-        } else if (req.query.callback) {
-          res.send(`${req.query.callback}(${script})`)
+        if (req.query.expose || req.query.callback) {
+          return await handlerForJsObj(script)(req, res)
         } else if (typeof backend[method] !== 'function') {
           throw `Method '${method}' does not exist`
         } else {
