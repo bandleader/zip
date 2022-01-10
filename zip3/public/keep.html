@@ -15,12 +15,16 @@
         <nav-bar heading="Zip Keep" class="bg-dark text-white" style="background: #FFBB00 !important"></nav-bar>
         <div class="container p-2">
             <div class="row">
-                <div class="offset-3 col-6">
-                    <div class="card clickable p-4 mt-4 text-muted" @click="notes.unshift({text:''})"><i>Click here to create a new note</i></div>
+                <div class="offset-md-3 col-md-6">
+                    <div class="card clickable mt-4 text-muted" @click="notes.unshift({text:''})">
+                        <div class="card-body">
+                            <i>Take a note</i>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="row">
-                <div v-for="n in notes" class="col-4">
+                <div v-for="n in notes" class="col-md-4">
                     <div class="card clickable mt-4 ">
                         <input class="form-control" :style="n.title ? {fontSize: '1.1em', fontWeight: 'bold'} : { opacity: 0.5 }" style="border-width: 0; box-shadow: none;" v-model="n.title" placeholder="Note title">
                         <textarea v-model="n.text" class="form-control" v-autoexpand 
