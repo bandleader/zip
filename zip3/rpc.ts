@@ -39,6 +39,7 @@ export function QRPC(backend: Record<string, Function>, endpointUrl = "/api") {
         if (req.query.expose || req.query.callback) {
           return await handlerForJsObj(script)(req, res)
         } else if (typeof backend[method] !== 'function') {
+          // throw `Method '${method}' does not exist. Methods are: ${Object.keys(backend)}`
           throw `Method '${method}' does not exist`
         } else {
           const args = JSON.parse(req.query.args)
