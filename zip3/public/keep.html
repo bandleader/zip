@@ -23,7 +23,7 @@
                 <div v-for="n in notes" class="col-4">
                     <div class="card clickable mt-4 ">
                         <input class="form-control" style="font-size: 1.1em; font-weight: bold; border-width: 0;" v-model="n.title" placeholder="Note title">
-                        <textarea v-model="n.text" class="form-control" style="border-width: 0; height: 150px; overflow-y: auto" placeholder="Type your note here"></textarea>
+                        <textarea v-model="n.text" class="form-control" v-autoexpand style="border-width: 0; height: 150px; overflow-y: auto" placeholder="Type your note here"></textarea>
                     </div>
                 </div>  
             </div>
@@ -40,6 +40,17 @@
                 this.$watch('notes', x => API.setItem("notes", x), { deep: true })
             },
         })  
+            .directive('autoexpand', {
+                mounted(el) { 
+                        el.style.height = '1em'
+                        el.style.height = el.scrollHeight + 'px'
+                        el.style.overflowY = 'hidden'
+                        el.addEventListener("input", () => {
+                            el.style.height = "auto"
+                            el.style.height = el.scrollHeight + "px"
+                        }, false)
+                    }
+            })
             .component('nav-bar', require('navbar'))
             .mount('#app')
     </script>
