@@ -11,12 +11,13 @@ export function handlerForJsObj(script: string) {
 }
 
 export function QRPC(backend: Record<string, Function>, endpointUrl = "/api") {
-    const endpointUrlString = endpointUrl + (endpointUrl.includes("?") ? "&" : "?")
     const indent = (text: string, spaces = 2) => text.split("\n").map(x => " ".repeat(spaces) + x).join("\n")
     //.replace(/\:method/g, '" + method + "')
     let script = 
-    `const _call = (method, ...args) => {
-        const result = fetch(${JSON.stringify(endpointUrlString)} + "method=" + method + "&args=" + encodeURIComponent(JSON.stringify(args)), { method: "POST" })
+    `let endpoint = ${JSON.stringify(endpointUrl)}
+    const _call = (method, ...args) => {
+        const questionOrAmp = endpoint.includes('?') ? '&' : '?'
+        const result = fetch(endpoint + questionOrAmp + "method=" + method + "&args=" + encodeURIComponent(JSON.stringify(args)), { method: "POST" })
         const jsonResult = result.then(x => x.json())
         return jsonResult.then(json => {
             if (json.err) {
