@@ -28,10 +28,10 @@
                 loading: false
             }),
             async created() {
-                this.foo = await API.storage_getItem("foo")
+                this.foo = await API.getItem("foo")
                 this.$watch('foo', async x => {
                     this.loading = true
-                    await API.storage_setItem("foo", x)
+                    await API.setItem("foo", x)
                     this.loading = false
                 })
             },

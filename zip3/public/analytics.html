@@ -57,8 +57,8 @@
                 }
             },
             async created() {
-                this.aInfo = await Analytics.analytics_get()
-                setInterval(async () => this.aInfo = await Analytics.analytics_get(), 3000)
+                this.aInfo = await Analytics.get()
+                setInterval(async () => this.aInfo = await Analytics.get(), 3000)
             },
         })  
             .component('nav-bar', require('navbar'))
