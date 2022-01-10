@@ -1,6 +1,6 @@
 {
   "name": "zip",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Framework for quick web apps",
   "main": "dist/index.js",
   "module": "dist/index.es.js",
@@ -10,7 +10,8 @@
   "files": [
     "dist",
     "default-files/*",
-    "cmds/*"
+    "cmds/*",
+    "zip3/*"
   ],
   "types": "dist/zip-runner.d.ts",
   "bin": {
