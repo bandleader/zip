@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zip 3.0 Demo</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootswatch/5.1.3/zephyr/bootstrap.min.css" integrity="sha512-gmJFuKTEQw6aHC2cWdrmdEHYw/M/8+bfsKmsJCcQ5hoI7WoOtkQ9hs7P0fqpBGRHHqBBJMibeCfhmk8So5qYUw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="/shared.css" />
+    <script type="text/javascript" src="https://unpkg.com/vue@3.2.26/dist/vue.global.js"></script>
+    <script type="text/javascript" src="/api?expose=API"></script>
+    <script type="text/javascript" src="/module/navbar"></script>
+</head>
+<body>
+    <div id="app" class="">
+        <nav-bar heading="Zip Keep" class="bg-dark text-white" style="background: #FFBB00 !important"></nav-bar>
+        <div class="container p-2">
+            <div class="row">
+                <div class="offset-3 col-6">
+                    <div class="card clickable p-4 mt-4 text-muted" @click="notes.unshift({text:''})"><i>Click here to create a new note</i></div>
+                </div>
+            </div>
+            <div class="row">
+                <div v-for="n in notes" class="col-4">
+                    <div class="card clickable mt-4 ">
+                        <input class="form-control" style="font-size: 1.1em; font-weight: bold; border-width: 0;" v-model="n.title" placeholder="Note title">
+                        <textarea v-model="n.text" class="form-control" style="border-width: 0; height: 150px; overflow-y: auto" placeholder="Type your note here"></textarea>
+                    </div>
+                </div>  
+            </div>
+            
+        </div>
+    </div>
+    <script>
+        Vue.createApp({
+            data: () => ({
+                notes: []
+            }),
+            async created() {
+                this.notes = await API.storage_getItem("notes") || []
+                this.$watch('notes', x => API.storage_setItem("notes", x), { deep: true })
+            },
+        })  
+            .component('nav-bar', require('navbar'))
+            .mount('#app')
+    </script>
+    
+</body>
+</html>

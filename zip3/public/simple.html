@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zip 3.0 Demo</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootswatch/5.1.3/zephyr/bootstrap.min.css" integrity="sha512-gmJFuKTEQw6aHC2cWdrmdEHYw/M/8+bfsKmsJCcQ5hoI7WoOtkQ9hs7P0fqpBGRHHqBBJMibeCfhmk8So5qYUw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="/shared.css" />
+    <script type="text/javascript" src="https://unpkg.com/vue@3.2.26/dist/vue.global.js"></script>
+    <script type="text/javascript" src="/api?expose=API"></script>
+    <script type="text/javascript" src="/module/navbar"></script>
+</head>
+<body>
+    <div id="app" class="">
+        <nav-bar heading="Simple Get & Set" class="bg-primary text-white"></nav-bar>
+        <div class="container mt-4">
+            <p>Enter text below, then refresh. You should get it right back.</p>
+            <textarea v-model="foo" class="form-control"></textarea>
+            <br>
+            <div v-if="loading" class="spinner-border text-primary" role="status"></div>
+        </div>
+    </div>
+    <script>
+        Vue.createApp({
+            data: () => ({
+                foo: "",
+                loading: false
+            }),
+            async created() {
+                this.foo = await API.storage_getItem("foo")
+                this.$watch('foo', async x => {
+                    this.loading = true
+                    await API.storage_setItem("foo", x)
+                    this.loading = false
+                })
+            },
+        })  
+            .component('nav-bar', require('navbar'))
+            .mount('#app')
+    </script>
+    
+</body>
+</html>
