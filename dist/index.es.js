@@ -247,7 +247,7 @@ var SimpleBundler = /** @class */ (function () {
             code = SimpleBundler.convertES6ExportSyntax(code);
             code = SimpleBundler.processRequires(code, function (path, es6Namespace) {
                 var resolvedModule = _this.resolveAndAddModule(path, { fromModuleAtPath: thisModule.key });
-                return requireFuncName + "(" + JSON.stringify(resolvedModule.key) + ", " + es6Namespace + ")";
+                return requireFuncName + "(" + JSON.stringify(resolvedModule.key) + ", " + !es6Namespace + ")"; // the second arg to the loader require is whether we should default to '.default' if that's the only export. So we want that UNLESS we're asked to get the ES6 namespace
             });
             compiledModules.push(__assign(__assign({}, thisModule), { factoryFuncString: code }));
         };
