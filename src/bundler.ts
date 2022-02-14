@@ -208,6 +208,7 @@ export class SimpleBundler {
           throw ex // Rethrow original exception to preserve stack trace in most browsers
         }
       }
+      console.log("requireDef:", key, useDefaultExportIfNoNamedExports, Object.keys(m.exports).length, 'default' in m.exports, Object.keys(m.exports))
       if (useDefaultExportIfNoNamedExports && Object.keys(m.exports).length === 1 && ('default' in m.exports)) return m.exports.default
       return m.exports
     }
